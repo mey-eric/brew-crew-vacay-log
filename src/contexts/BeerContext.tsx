@@ -1,6 +1,8 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useUser } from './UserContext';
+import { beerApiService } from '@/services/beerApiService';
+import { toast } from '@/components/ui/sonner';
 
 // Types
 export interface BeerEntry {
@@ -19,6 +21,7 @@ interface BeerContextType {
   getEntriesInTimeRange: (startDate: Date, endDate: Date) => BeerEntry[];
   getUserEntriesInTimeRange: (userId: string, startDate: Date, endDate: Date) => BeerEntry[];
   getTotalConsumption: (userId?: string) => number;
+  isLoading: boolean;
 }
 
 // Create context with default values
@@ -29,6 +32,7 @@ const BeerContext = createContext<BeerContextType>({
   getEntriesInTimeRange: () => [],
   getUserEntriesInTimeRange: () => [],
   getTotalConsumption: () => 0,
+  isLoading: false,
 });
 
 // Sample initial beer entries for demo
@@ -44,35 +48,71 @@ const SAMPLE_ENTRIES: BeerEntry[] = [
 export const BeerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, users } = useUser();
   const [entries, setEntries] = useState<BeerEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Load saved entries from localStorage on initial load
-    const savedEntries = localStorage.getItem('beerEntries');
-    if (savedEntries) {
-      setEntries(JSON.parse(savedEntries));
-    } else {
-      // Use sample data for first load
-      setEntries(SAMPLE_ENTRIES);
-      localStorage.setItem('beerEntries', JSON.stringify(SAMPLE_ENTRIES));
-    }
+    // Load saved entries from API on initial load
+    const loadEntries = async () => {
+      setIsLoading(true);
+      try {
+        // Check if we have entries in localStorage already
+        const savedEntries = localStorage.getItem('beerEntries');
+        if (!savedEntries) {
+          // Use sample data for first load
+          localStorage.setItem('beerEntries', JSON.stringify(SAMPLE_ENTRIES));
+        }
+        
+        // Then fetch via API
+        const loadedEntries = await beerApiService.getAllEntries();
+        setEntries(loadedEntries);
+      } catch (error) {
+        console.error('Error loading beer entries:', error);
+        toast({
+          title: "Failed to load beer data",
+          description: "Please try refreshing the page",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadEntries();
   }, []);
 
   // Add a new beer entry
-  const addEntry = (size: number, type?: string) => {
+  const addEntry = async (size: number, type?: string) => {
     if (!currentUser) return;
-
-    const newEntry: BeerEntry = {
-      id: Date.now().toString(),
-      userId: currentUser.id,
-      userName: currentUser.name,
-      size,
-      timestamp: new Date().toISOString(),
-      type,
-    };
-
-    const updatedEntries = [...entries, newEntry];
-    setEntries(updatedEntries);
-    localStorage.setItem('beerEntries', JSON.stringify(updatedEntries));
+    
+    setIsLoading(true);
+    try {
+      const newEntryData = {
+        userId: currentUser.id,
+        userName: currentUser.name,
+        size,
+        timestamp: new Date().toISOString(),
+        type,
+      };
+      
+      const newEntry = await beerApiService.addEntry(newEntryData);
+      
+      // Update local state
+      setEntries(prevEntries => [...prevEntries, newEntry]);
+      
+      toast({
+        title: "Beer added!",
+        description: `You've added a ${size}ml ${type}.`,
+      });
+    } catch (error) {
+      console.error('Error adding beer entry:', error);
+      toast({
+        title: "Failed to add beer",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Get entries for a specific user
@@ -112,7 +152,8 @@ export const BeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
       getUserEntries, 
       getEntriesInTimeRange, 
       getUserEntriesInTimeRange, 
-      getTotalConsumption 
+      getTotalConsumption,
+      isLoading
     }}>
       {children}
     </BeerContext.Provider>

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Beer, Plus } from 'lucide-react';
+import { Beer, Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -35,7 +35,7 @@ const AddBeerForm = () => {
   const [size, setSize] = useState<number | string>(500);
   const [customSize, setCustomSize] = useState<boolean>(false);
   const [type, setType] = useState<string>(BEER_TYPES[0]);
-  const { addEntry } = useBeer();
+  const { addEntry, isLoading } = useBeer();
   const { toast } = useToast();
 
   const handleSizeChange = (value: string) => {
@@ -73,11 +73,6 @@ const AddBeerForm = () => {
     }
     
     addEntry(finalSize, type);
-    toast({
-      title: "Beer added!",
-      description: `You've added a ${finalSize}ml ${type}.`,
-      variant: "default",
-    });
     
     // Reset form to default values
     setSize(500);
@@ -185,9 +180,19 @@ const AddBeerForm = () => {
           <Button 
             type="submit" 
             className="w-full bg-beer-amber hover:bg-beer-dark text-beer-dark hover:text-beer-cream"
+            disabled={isLoading}
           >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Beer
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Adding...
+              </>
+            ) : (
+              <>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Beer
+              </>
+            )}
           </Button>
         </CardFooter>
       </form>
