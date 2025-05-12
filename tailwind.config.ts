@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,15 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Beer theme colors
+				beer: {
+					amber: '#F2A900',
+					dark: '#442412',
+					cream: '#F5F5DC',
+					red: '#B22222',
+					foam: '#FFFFFF',
+					light: '#FFC72C',
 				}
 			},
 			borderRadius: {
@@ -84,11 +94,25 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'bubble': {
+					'0%': {
+						transform: 'translateY(0)',
+						opacity: '0'
+					},
+					'50%': {
+						opacity: '1'
+					},
+					'100%': {
+						transform: 'translateY(-20px)',
+						opacity: '0'
+					}
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'bubble': 'bubble 2s ease-in-out infinite'
 			}
 		}
 	},

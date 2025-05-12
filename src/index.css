@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -98,4 +99,29 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Beer bubble animation */
+@keyframes bubble {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+}
+
+.animate-bubble {
+  animation: bubble 2s ease-in-out infinite;
+}
+
+.bubbles {
+  position: relative;
+  width: 100%;
+  height: 100%;
 }
