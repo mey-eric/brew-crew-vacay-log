@@ -67,11 +67,7 @@ export const BeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setEntries(loadedEntries);
       } catch (error) {
         console.error('Error loading beer entries:', error);
-        toast({
-          title: "Failed to load beer data",
-          description: "Please try refreshing the page",
-          variant: "destructive",
-        });
+        toast("Failed to load beer data. Please try refreshing the page");
       } finally {
         setIsLoading(false);
       }
@@ -99,17 +95,10 @@ export const BeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Update local state
       setEntries(prevEntries => [...prevEntries, newEntry]);
       
-      toast({
-        title: "Beer added!",
-        description: `You've added a ${size}ml ${type}.`,
-      });
+      toast(`Beer added! You've added a ${size}ml ${type}.`);
     } catch (error) {
       console.error('Error adding beer entry:', error);
-      toast({
-        title: "Failed to add beer",
-        description: "Please try again",
-        variant: "destructive",
-      });
+      toast("Failed to add beer. Please try again");
     } finally {
       setIsLoading(false);
     }
