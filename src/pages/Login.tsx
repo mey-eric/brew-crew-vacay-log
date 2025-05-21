@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from '@/components/ui/sonner';
 import { useUser } from '@/contexts/UserContext';
 
 const Login = () => {
@@ -15,7 +15,6 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useUser();
-  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,18 +22,10 @@ const Login = () => {
 
     try {
       await login(email, password);
-      toast({
-        title: "Login successful!",
-        description: "Welcome back to BeerTracker.",
-        variant: "default",
-      });
+      toast("Login successful! Welcome back to BeerTracker.");
       navigate('/dashboard');
     } catch (error) {
-      toast({
-        title: "Login failed",
-        description: "Invalid email or password. Please try again.",
-        variant: "destructive",
-      });
+      toast("Login failed. Invalid email or password. Please try again.");
     } finally {
       setIsLoading(false);
     }
