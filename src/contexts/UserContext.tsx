@@ -2,6 +2,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/components/ui/sonner';
+import { Session } from '@supabase/supabase-js';
 
 // Types
 export interface User {
@@ -33,56 +34,74 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
 
-  // Check for current session on initial load
+  // Check for current session on initial load and set up auth listener
   useEffect(() => {
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        const { user } = data.session;
-        if (user) {
-          // Get user profile data
-          const { data: profileData } = await supabase
-            .from('user_profiles')
-            .select('name')
-            .eq('id', user.id)
-            .single();
-
-          setCurrentUser({
-            id: user.id,
-            name: profileData?.name || 'User',
-            email: user.email || '',
-          });
-          setIsAuthenticated(true);
-        }
-      }
-    };
-
-    checkSession();
-
-    // Set up auth state change listener
-    const { data: authListener } = supabase.auth.onAuthStateChange(
+    // Set up auth state change listener first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state change event:", event);
+        
         if (event === 'SIGNED_IN' && session?.user) {
+          setSession(session);
+          
           // Get user profile data
-          const { data: profileData } = await supabase
-            .from('user_profiles')
-            .select('name')
-            .eq('id', session.user.id)
-            .single();
-
-          setCurrentUser({
-            id: session.user.id,
-            name: profileData?.name || 'User',
-            email: session.user.email || '',
-          });
-          setIsAuthenticated(true);
+          setTimeout(async () => {
+            try {
+              const { data: profileData, error } = await supabase
+                .from('user_profiles')
+                .select('name')
+                .eq('id', session.user.id)
+                .single();
+  
+              if (error) throw error;
+    
+              setCurrentUser({
+                id: session.user.id,
+                name: profileData?.name || 'User',
+                email: session.user.email || '',
+              });
+              setIsAuthenticated(true);
+            } catch (error) {
+              console.error('Error fetching user profile:', error);
+            }
+          }, 0);
         } else if (event === 'SIGNED_OUT') {
           setCurrentUser(null);
+          setSession(null);
           setIsAuthenticated(false);
         }
       }
     );
+
+    // Then check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("Got session:", session);
+      if (session?.user) {
+        setSession(session);
+        
+        // Get user profile data
+        supabase
+          .from('user_profiles')
+          .select('name')
+          .eq('id', session.user.id)
+          .single()
+          .then(({ data: profileData, error }) => {
+            if (error) {
+              console.error('Error fetching user profile:', error);
+              return;
+            }
+            
+            setCurrentUser({
+              id: session.user.id,
+              name: profileData?.name || 'User',
+              email: session.user.email || '',
+            });
+            setIsAuthenticated(true);
+          });
+      }
+    });
 
     // Fetch all users (for the leaderboard)
     const fetchUsers = async () => {
@@ -101,7 +120,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchUsers();
 
     return () => {
-      authListener.subscription.unsubscribe();
+      subscription.unsubscribe();
     };
   }, []);
 
@@ -112,9 +131,13 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Login error:', error);
+        throw error;
+      }
 
       // User will be set via the auth state change listener
+      console.log('Login successful:', data);
       toast("Successfully logged in");
     } catch (error) {
       console.error('Login failed:', error);
@@ -134,13 +157,20 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signup = async (name: string, email: string, password: string): Promise<void> => {
     try {
+      console.log("Signing up with:", { name, email });
+      
       // Sign up the user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Signup error:', error);
+        throw error;
+      }
+
+      console.log('Signup successful:', data);
 
       if (data.user) {
         // Create profile entry
@@ -154,7 +184,10 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
             },
           ]);
 
-        if (profileError) throw profileError;
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          throw profileError;
+        }
 
         toast("Account created successfully");
         

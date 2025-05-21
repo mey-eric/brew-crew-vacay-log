@@ -1,51 +1,17 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Check if environment variables are available
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Use the actual Supabase URL and anon key for your project
+const supabaseUrl = 'https://twcandgazzzbbrmffstt.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3Y2FuZGdhenp6YmJybWZmc3R0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc4NjIxMTgsImV4cCI6MjA2MzQzODExOH0.vYKHCLERTTzeshRpNy5Wr_sZ2bezW2Yz7BaY149MTcs';
 
-// For development, we'll provide a fallback mechanism when the environment variables are not set
-let supabase;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error(
-    'Supabase URL or Anonymous Key not found in environment variables. ' +
-    'Using a mock Supabase client. Please set up your Supabase environment variables.'
-  );
-  
-  // Create a mock Supabase client with placeholder methods
-  supabase = {
-    auth: {
-      signInWithPassword: async () => ({ data: { user: { id: '1', email: 'demo@example.com' } }, error: null }),
-      signUp: async () => ({ data: { user: { id: '1', email: 'demo@example.com' } }, error: null }),
-      signOut: async () => ({ error: null }),
-      getSession: async () => ({ data: { session: null }, error: null }),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-    },
-    from: (table) => ({
-      select: () => ({
-        single: async () => ({ data: { name: 'Demo User' }, error: null }),
-        eq: () => ({
-          single: async () => ({ data: { name: 'Demo User' }, error: null }),
-        }),
-      }),
-      insert: () => ({
-        select: () => ({
-          single: async () => ({ data: { id: '1', name: 'Demo User' }, error: null }),
-        }),
-      }),
-    }),
-    channel: () => ({
-      on: () => ({
-        subscribe: () => ({}),
-      }),
-    }),
-    removeChannel: () => {},
-  };
-} else {
-  // Create actual Supabase client when environment variables are available
-  supabase = createClient(supabaseUrl, supabaseAnonKey);
-}
+// Create the Supabase client
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    storage: localStorage
+  }
+});
 
 export { supabase };

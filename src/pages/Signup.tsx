@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from '@/components/ui/sonner';
 import { useUser } from '@/contexts/UserContext';
 
 const Signup = () => {
@@ -17,17 +17,12 @@ const Signup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { signup } = useUser();
-  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (password !== confirmPassword) {
-      toast({
-        title: "Passwords don't match",
-        description: "Please make sure your passwords match.",
-        variant: "destructive",
-      });
+      toast("Passwords don't match. Please make sure your passwords match.");
       return;
     }
     
@@ -35,18 +30,11 @@ const Signup = () => {
     
     try {
       await signup(name, email, password);
-      toast({
-        title: "Account created!",
-        description: "Welcome to BeerTracker!",
-        variant: "default",
-      });
+      toast("Account created! Welcome to BeerTracker!");
       navigate('/dashboard');
     } catch (error) {
-      toast({
-        title: "Sign up failed",
-        description: typeof error === 'string' ? error : "An error occurred during sign up.",
-        variant: "destructive",
-      });
+      console.error('Signup error:', error);
+      toast(typeof error === 'string' ? error : "An error occurred during sign up.");
     } finally {
       setIsLoading(false);
     }

@@ -25,6 +25,7 @@ const Login = () => {
       toast("Login successful! Welcome back to BeerTracker.");
       navigate('/dashboard');
     } catch (error) {
+      console.error('Login error:', error);
       toast("Login failed. Invalid email or password. Please try again.");
     } finally {
       setIsLoading(false);
@@ -97,12 +98,6 @@ const Login = () => {
             </CardFooter>
           </form>
         </Card>
-
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <p>For demo purposes, you can use:</p>
-          <p>Email: john@example.com</p>
-          <p>Password: any password will work</p>
-        </div>
       </div>
     </div>
   );
