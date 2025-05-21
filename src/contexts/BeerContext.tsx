@@ -3,6 +3,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useUser } from './UserContext';
 import { beerApiService } from '@/services/beerApiService';
 import { toast } from '@/components/ui/sonner';
+import { supabase } from '@/lib/supabase';
 
 // Types
 export interface BeerEntry {
@@ -35,46 +36,48 @@ const BeerContext = createContext<BeerContextType>({
   isLoading: false,
 });
 
-// Sample initial beer entries for demo
-const SAMPLE_ENTRIES: BeerEntry[] = [
-  { id: '1', userId: '1', userName: 'John', size: 500, timestamp: new Date(Date.now() - 86400000).toISOString(), type: 'Lager' },
-  { id: '2', userId: '2', userName: 'Jane', size: 330, timestamp: new Date(Date.now() - 86400000 * 2).toISOString(), type: 'IPA' },
-  { id: '3', userId: '1', userName: 'John', size: 500, timestamp: new Date(Date.now() - 86400000 * 3).toISOString(), type: 'Stout' },
-  { id: '4', userId: '3', userName: 'Mike', size: 1000, timestamp: new Date(Date.now() - 86400000 * 1.5).toISOString(), type: 'Pilsner' },
-  { id: '5', userId: '4', userName: 'Sarah', size: 330, timestamp: new Date(Date.now() - 86400000 * 0.5).toISOString(), type: 'Wheat Beer' },
-  { id: '6', userId: '2', userName: 'Jane', size: 500, timestamp: new Date(Date.now() - 86400000 * 0.2).toISOString(), type: 'Pale Ale' },
-];
-
 export const BeerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, users } = useUser();
   const [entries, setEntries] = useState<BeerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Set up real-time subscription
   useEffect(() => {
-    // Load saved entries from API on initial load
-    const loadEntries = async () => {
-      setIsLoading(true);
-      try {
-        // Check if we have entries in localStorage already
-        const savedEntries = localStorage.getItem('beerEntries');
-        if (!savedEntries) {
-          // Use sample data for first load
-          localStorage.setItem('beerEntries', JSON.stringify(SAMPLE_ENTRIES));
-        }
-        
-        // Then fetch via API
-        const loadedEntries = await beerApiService.getAllEntries();
-        setEntries(loadedEntries);
-      } catch (error) {
-        console.error('Error loading beer entries:', error);
-        toast("Failed to load beer data. Please try refreshing the page");
-      } finally {
-        setIsLoading(false);
-      }
+    const subscription = supabase
+      .channel('beer_entries_changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public',
+        table: 'beer_entries'
+      }, payload => {
+        console.log('Change received!', payload);
+        // Refresh entries when data changes
+        loadEntries();
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(subscription);
     };
-    
+  }, []);
+
+  useEffect(() => {
+    // Load saved entries from Supabase on initial load
     loadEntries();
   }, []);
+
+  const loadEntries = async () => {
+    setIsLoading(true);
+    try {
+      const loadedEntries = await beerApiService.getAllEntries();
+      setEntries(loadedEntries);
+    } catch (error) {
+      console.error('Error loading beer entries:', error);
+      toast("Failed to load beer data. Please try refreshing the page");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Add a new beer entry
   const addEntry = async (size: number, type?: string) => {
