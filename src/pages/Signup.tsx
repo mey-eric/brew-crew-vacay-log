@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { Beer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +18,12 @@ const Signup = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { signup } = useUser();
+  const { signup, isAuthenticated } = useUser();
+
+  // Redirect if already authenticated
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +31,7 @@ const Signup = () => {
     
     if (password !== confirmPassword) {
       setError("Passwords don't match. Please make sure your passwords match.");
-      toast("Passwords don't match");
+      toast.error("Passwords don't match");
       return;
     }
     
@@ -34,11 +39,8 @@ const Signup = () => {
     
     try {
       await signup(name, email, password);
-      toast("Account created successfully!");
-      // Navigate after successful signup - give a small delay to allow auth state to update
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 500);
+      toast.success("Account created successfully!");
+      navigate('/dashboard');
     } catch (err) {
       console.error('Signup error:', err);
       if (err instanceof Error) {

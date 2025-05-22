@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { Beer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +16,12 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { login } = useUser();
+  const { login, isAuthenticated } = useUser();
+
+  // Redirect if already authenticated
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,10 +30,8 @@ const Login = () => {
 
     try {
       await login(email, password);
-      // Navigate after successful login - the auth state listener will ensure user data is loaded
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 500); // Small delay to allow auth state to update
+      toast("Successfully logged in");
+      navigate('/dashboard');
     } catch (err) {
       console.error('Login error:', err);
       if (err instanceof Error) {
