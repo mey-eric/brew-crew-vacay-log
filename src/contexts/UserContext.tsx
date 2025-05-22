@@ -36,14 +36,42 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
 
+  // Create or update user profile
+  const createOrUpdateProfile = async (userId: string, name: string, email: string) => {
+    try {
+      console.log("Creating/updating profile for:", { userId, name, email });
+      const { error } = await supabase
+        .from('user_profiles')
+        .upsert([
+          {
+            id: userId,
+            name: name || 'User',
+            email: email || '',
+          },
+        ], { onConflict: 'id' });
+
+      if (error) {
+        console.error("Error creating/updating profile:", error);
+        return false;
+      }
+      
+      console.log("Profile created/updated successfully");
+      return true;
+    } catch (err) {
+      console.error("Exception in createOrUpdateProfile:", err);
+      return false;
+    }
+  };
+
   // Helper function to fetch user profile data
   const fetchUserProfile = async (userId: string) => {
     try {
+      console.log("Fetching profile for user:", userId);
       const { data, error } = await supabase
         .from('user_profiles')
         .select('name, email')
         .eq('id', userId)
-        .maybeSingle();
+        .single();
 
       if (error) {
         console.error('Error fetching user profile:', error);
@@ -67,7 +95,41 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     console.log("Setting up auth state listener");
     
-    // Set up auth state change listener first
+    // Get existing session first
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("Got existing session:", session);
+      if (session?.user) {
+        setSession(session);
+        setIsAuthenticated(true);
+        
+        // Fetch user profile in a non-blocking way
+        setTimeout(async () => {
+          const profileData = await fetchUserProfile(session.user.id);
+          
+          if (profileData) {
+            setCurrentUser({
+              id: session.user.id,
+              name: profileData.name || 'User',
+              email: profileData.email || session.user.email || '',
+            });
+          } else {
+            // If no profile exists but we have a session, create a default profile
+            const name = session.user.user_metadata?.name || 'User';
+            const email = session.user.email || '';
+            
+            await createOrUpdateProfile(session.user.id, name, email);
+            
+            setCurrentUser({
+              id: session.user.id,
+              name,
+              email,
+            });
+          }
+        }, 0);
+      }
+    });
+    
+    // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log("Auth state change event:", event);
@@ -75,6 +137,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session) {
           console.log("Session user:", session.user);
           setSession(session);
+          setIsAuthenticated(true);
           
           // Get user profile data
           if (session.user) {
@@ -88,31 +151,18 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   name: profileData.name || 'User',
                   email: profileData.email || session.user.email || '',
                 });
-                setIsAuthenticated(true);
               } else {
                 // If no profile exists but we have a session, create a default profile
-                try {
-                  const { error } = await supabase.from('user_profiles').insert([
-                    {
-                      id: session.user.id,
-                      name: session.user.user_metadata?.name || 'User',
-                      email: session.user.email,
-                    }
-                  ]);
-                  
-                  if (!error) {
-                    setCurrentUser({
-                      id: session.user.id,
-                      name: session.user.user_metadata?.name || 'User',
-                      email: session.user.email || '',
-                    });
-                    setIsAuthenticated(true);
-                  } else {
-                    console.error('Error creating default profile:', error);
-                  }
-                } catch (err) {
-                  console.error('Error creating default profile:', err);
-                }
+                const name = session.user.user_metadata?.name || 'User';
+                const email = session.user.email || '';
+                
+                await createOrUpdateProfile(session.user.id, name, email);
+                
+                setCurrentUser({
+                  id: session.user.id,
+                  name,
+                  email,
+                });
               }
             }, 0);
           }
@@ -123,28 +173,6 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     );
-
-    // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("Got session:", session);
-      if (session?.user) {
-        setSession(session);
-        
-        // Fetch user profile in a non-blocking way
-        setTimeout(async () => {
-          const profileData = await fetchUserProfile(session.user.id);
-          
-          if (profileData) {
-            setCurrentUser({
-              id: session.user.id,
-              name: profileData.name || 'User',
-              email: profileData.email || session.user.email || '',
-            });
-            setIsAuthenticated(true);
-          }
-        }, 0);
-      }
-    });
 
     // Fetch all users (for the leaderboard)
     const fetchUsers = async () => {
@@ -177,18 +205,19 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Login error:', error);
-        toast("Login failed: " + error.message);
+        toast.error("Login failed: " + error.message);
         throw error;
       }
 
       console.log('Login successful:', data);
-      toast("Successfully logged in");
+      
+      // We don't set user state here - the auth state listener will handle that
     } catch (error) {
       console.error('Login failed:', error);
       if (error instanceof Error) {
-        toast("Login failed: " + error.message);
+        toast.error("Login failed: " + error.message);
       } else {
-        toast("Invalid email or password");
+        toast.error("Invalid email or password");
       }
       throw error;
     }
@@ -197,11 +226,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       await supabase.auth.signOut();
-      toast("Logged out successfully");
+      toast.success("Logged out successfully");
       // Auth state listener will handle the rest
     } catch (error) {
       console.error('Logout failed:', error);
-      toast("Logout failed");
+      toast.error("Logout failed");
     }
   };
 
@@ -222,7 +251,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Signup error:', error);
-        toast("Signup failed: " + error.message);
+        toast.error("Signup failed: " + error.message);
         throw error;
       }
 
@@ -230,31 +259,22 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (data.user) {
         // Create profile entry
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .insert([
-            {
-              id: data.user.id,
-              name,
-              email,
-            },
-          ]);
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          toast("Profile creation failed: " + profileError.message);
-          throw profileError;
+        const profileCreated = await createOrUpdateProfile(data.user.id, name, email);
+        
+        if (!profileCreated) {
+          console.error('Profile creation failed');
+          toast.error("Your account was created, but profile setup failed");
+        } else {
+          toast.success("Account created successfully");
+          console.log("User profile created successfully");
         }
-
-        toast("Account created successfully");
-        console.log("User profile created successfully");
       }
     } catch (error) {
       console.error('Signup failed:', error);
       if (error instanceof Error) {
-        toast("Failed to create account: " + error.message);
+        toast.error("Failed to create account: " + error.message);
       } else {
-        toast("Failed to create account");
+        toast.error("Failed to create account");
       }
       throw error;
     }

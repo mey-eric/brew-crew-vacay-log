@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { Beer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,10 +20,12 @@ const Signup = () => {
   const navigate = useNavigate();
   const { signup, isAuthenticated } = useUser();
 
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  // Redirect if already authenticated - check on every render
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +42,6 @@ const Signup = () => {
     try {
       await signup(name, email, password);
       toast.success("Account created successfully!");
-      navigate('/dashboard');
     } catch (err) {
       console.error('Signup error:', err);
       if (err instanceof Error) {

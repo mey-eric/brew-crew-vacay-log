@@ -18,10 +18,12 @@ const Login = () => {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useUser();
 
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  // Redirect if already authenticated - check on every render
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,8 +32,7 @@ const Login = () => {
 
     try {
       await login(email, password);
-      toast("Successfully logged in");
-      navigate('/dashboard');
+      toast.success("Successfully logged in");
     } catch (err) {
       console.error('Login error:', err);
       if (err instanceof Error) {
