@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/sonner';
 import { useUser } from '@/contexts/UserContext';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const Signup = () => {
   const [name, setName] = useState('');
@@ -15,13 +16,16 @@ const Signup = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { signup } = useUser();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     
     if (password !== confirmPassword) {
+      setError("Passwords don't match. Please make sure your passwords match.");
       toast("Passwords don't match. Please make sure your passwords match.");
       return;
     }
@@ -32,9 +36,13 @@ const Signup = () => {
       await signup(name, email, password);
       toast("Account created! Welcome to BeerTracker!");
       navigate('/dashboard');
-    } catch (error) {
-      console.error('Signup error:', error);
-      toast(typeof error === 'string' ? error : "An error occurred during sign up.");
+    } catch (err) {
+      console.error('Signup error:', err);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An error occurred during sign up.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -57,6 +65,14 @@ const Signup = () => {
           
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    {error}
+                  </AlertDescription>
+                </Alert>
+              )}
+              
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
                 <Input

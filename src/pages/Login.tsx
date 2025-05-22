@@ -8,25 +8,32 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/components/ui/sonner';
 import { useUser } from '@/contexts/UserContext';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { login } = useUser();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setIsLoading(true);
 
     try {
       await login(email, password);
       toast("Login successful! Welcome back to BeerTracker.");
       navigate('/dashboard');
-    } catch (error) {
-      console.error('Login error:', error);
-      toast("Login failed. Invalid email or password. Please try again.");
+    } catch (err) {
+      console.error('Login error:', err);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Invalid email or password. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -49,6 +56,14 @@ const Login = () => {
           
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    {error}
+                  </AlertDescription>
+                </Alert>
+              )}
+            
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input

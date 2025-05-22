@@ -38,36 +38,50 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Check for current session on initial load and set up auth listener
   useEffect(() => {
+    console.log("Setting up auth state listener");
+    
     // Set up auth state change listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log("Auth state change event:", event);
         
-        if (event === 'SIGNED_IN' && session?.user) {
+        if (session) {
+          console.log("Session user:", session.user);
           setSession(session);
           
           // Get user profile data
-          setTimeout(async () => {
-            try {
-              const { data: profileData, error } = await supabase
-                .from('user_profiles')
-                .select('name')
-                .eq('id', session.user.id)
-                .single();
-  
-              if (error) throw error;
+          if (session.user) {
+            setTimeout(async () => {
+              try {
+                const { data: profileData, error } = await supabase
+                  .from('user_profiles')
+                  .select('name, email')
+                  .eq('id', session.user.id)
+                  .single();
     
-              setCurrentUser({
-                id: session.user.id,
-                name: profileData?.name || 'User',
-                email: session.user.email || '',
-              });
-              setIsAuthenticated(true);
-            } catch (error) {
-              console.error('Error fetching user profile:', error);
-            }
-          }, 0);
-        } else if (event === 'SIGNED_OUT') {
+                if (error) {
+                  console.error('Error fetching user profile:', error);
+                  return;
+                }
+
+                console.log("Profile data:", profileData);
+                
+                if (profileData) {
+                  setCurrentUser({
+                    id: session.user.id,
+                    name: profileData.name || 'User',
+                    email: profileData.email || session.user.email || '',
+                  });
+                  setIsAuthenticated(true);
+                } else {
+                  console.warn("No profile data found for user");
+                }
+              } catch (error) {
+                console.error('Error in profile fetch:', error);
+              }
+            }, 0);
+          }
+        } else {
           setCurrentUser(null);
           setSession(null);
           setIsAuthenticated(false);
@@ -84,7 +98,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Get user profile data
         supabase
           .from('user_profiles')
-          .select('name')
+          .select('name, email')
           .eq('id', session.user.id)
           .single()
           .then(({ data: profileData, error }) => {
@@ -93,12 +107,16 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
               return;
             }
             
-            setCurrentUser({
-              id: session.user.id,
-              name: profileData?.name || 'User',
-              email: session.user.email || '',
-            });
-            setIsAuthenticated(true);
+            if (profileData) {
+              setCurrentUser({
+                id: session.user.id,
+                name: profileData.name || 'User',
+                email: profileData.email || session.user.email || '',
+              });
+              setIsAuthenticated(true);
+            } else {
+              console.warn("No profile data found for user");
+            }
           });
       }
     });
@@ -126,6 +144,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<void> => {
     try {
+      console.log("Attempting login with:", email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -133,15 +152,19 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Login error:', error);
+        toast("Login failed: " + error.message);
         throw error;
       }
 
-      // User will be set via the auth state change listener
       console.log('Login successful:', data);
       toast("Successfully logged in");
     } catch (error) {
       console.error('Login failed:', error);
-      toast("Invalid email or password");
+      if (error instanceof Error) {
+        toast("Login failed: " + error.message);
+      } else {
+        toast("Invalid email or password");
+      }
       throw error;
     }
   };
@@ -149,9 +172,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       await supabase.auth.signOut();
+      toast("Logged out successfully");
       // Auth state listener will handle the rest
     } catch (error) {
       console.error('Logout failed:', error);
+      toast("Logout failed");
     }
   };
 
@@ -167,6 +192,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('Signup error:', error);
+        toast("Signup failed: " + error.message);
         throw error;
       }
 
@@ -186,16 +212,20 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (profileError) {
           console.error('Profile creation error:', profileError);
+          toast("Profile creation failed: " + profileError.message);
           throw profileError;
         }
 
         toast("Account created successfully");
-        
-        // User will be set via the auth state change listener
+        console.log("User profile created successfully");
       }
     } catch (error) {
       console.error('Signup failed:', error);
-      toast("Failed to create account");
+      if (error instanceof Error) {
+        toast("Failed to create account: " + error.message);
+      } else {
+        toast("Failed to create account");
+      }
       throw error;
     }
   };
