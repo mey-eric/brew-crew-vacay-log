@@ -25,8 +25,10 @@ const Login = () => {
 
     try {
       await login(email, password);
-      toast("Login successful! Welcome back to BeerTracker.");
-      navigate('/dashboard');
+      // Navigate after successful login - the auth state listener will ensure user data is loaded
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 500); // Small delay to allow auth state to update
     } catch (err) {
       console.error('Login error:', err);
       if (err instanceof Error) {
@@ -74,6 +76,7 @@ const Login = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   className="border-beer-dark focus:ring-beer-amber"
+                  autoComplete="email"
                 />
               </div>
               
@@ -91,6 +94,7 @@ const Login = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   className="border-beer-dark focus:ring-beer-amber"
+                  autoComplete="current-password"
                 />
               </div>
             </CardContent>

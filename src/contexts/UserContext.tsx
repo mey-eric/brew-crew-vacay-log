@@ -36,13 +36,40 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
 
+  // Helper function to fetch user profile data
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('name, email')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return null;
+      }
+
+      if (data) {
+        console.log("Profile data found:", data);
+        return data;
+      } else {
+        console.warn("No profile data found for user");
+        return null;
+      }
+    } catch (error) {
+      console.error('Error in profile fetch:', error);
+      return null;
+    }
+  };
+
   // Check for current session on initial load and set up auth listener
   useEffect(() => {
     console.log("Setting up auth state listener");
     
     // Set up auth state change listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         console.log("Auth state change event:", event);
         
         if (session) {
@@ -51,33 +78,41 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           // Get user profile data
           if (session.user) {
+            // Use setTimeout to prevent Supabase auth state deadlocks
             setTimeout(async () => {
-              try {
-                const { data: profileData, error } = await supabase
-                  .from('user_profiles')
-                  .select('name, email')
-                  .eq('id', session.user.id)
-                  .single();
-    
-                if (error) {
-                  console.error('Error fetching user profile:', error);
-                  return;
+              const profileData = await fetchUserProfile(session.user.id);
+              
+              if (profileData) {
+                setCurrentUser({
+                  id: session.user.id,
+                  name: profileData.name || 'User',
+                  email: profileData.email || session.user.email || '',
+                });
+                setIsAuthenticated(true);
+              } else {
+                // If no profile exists but we have a session, create a default profile
+                try {
+                  const { error } = await supabase.from('user_profiles').insert([
+                    {
+                      id: session.user.id,
+                      name: session.user.user_metadata?.name || 'User',
+                      email: session.user.email,
+                    }
+                  ]);
+                  
+                  if (!error) {
+                    setCurrentUser({
+                      id: session.user.id,
+                      name: session.user.user_metadata?.name || 'User',
+                      email: session.user.email || '',
+                    });
+                    setIsAuthenticated(true);
+                  } else {
+                    console.error('Error creating default profile:', error);
+                  }
+                } catch (err) {
+                  console.error('Error creating default profile:', err);
                 }
-
-                console.log("Profile data:", profileData);
-                
-                if (profileData) {
-                  setCurrentUser({
-                    id: session.user.id,
-                    name: profileData.name || 'User',
-                    email: profileData.email || session.user.email || '',
-                  });
-                  setIsAuthenticated(true);
-                } else {
-                  console.warn("No profile data found for user");
-                }
-              } catch (error) {
-                console.error('Error in profile fetch:', error);
               }
             }, 0);
           }
@@ -95,29 +130,19 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (session?.user) {
         setSession(session);
         
-        // Get user profile data
-        supabase
-          .from('user_profiles')
-          .select('name, email')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data: profileData, error }) => {
-            if (error) {
-              console.error('Error fetching user profile:', error);
-              return;
-            }
-            
-            if (profileData) {
-              setCurrentUser({
-                id: session.user.id,
-                name: profileData.name || 'User',
-                email: profileData.email || session.user.email || '',
-              });
-              setIsAuthenticated(true);
-            } else {
-              console.warn("No profile data found for user");
-            }
-          });
+        // Fetch user profile in a non-blocking way
+        setTimeout(async () => {
+          const profileData = await fetchUserProfile(session.user.id);
+          
+          if (profileData) {
+            setCurrentUser({
+              id: session.user.id,
+              name: profileData.name || 'User',
+              email: profileData.email || session.user.email || '',
+            });
+            setIsAuthenticated(true);
+          }
+        }, 0);
       }
     });
 
@@ -188,6 +213,11 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            name // Store the name in user_metadata
+          }
+        }
       });
 
       if (error) {

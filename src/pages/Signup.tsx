@@ -26,7 +26,7 @@ const Signup = () => {
     
     if (password !== confirmPassword) {
       setError("Passwords don't match. Please make sure your passwords match.");
-      toast("Passwords don't match. Please make sure your passwords match.");
+      toast("Passwords don't match");
       return;
     }
     
@@ -34,8 +34,11 @@ const Signup = () => {
     
     try {
       await signup(name, email, password);
-      toast("Account created! Welcome to BeerTracker!");
-      navigate('/dashboard');
+      toast("Account created successfully!");
+      // Navigate after successful signup - give a small delay to allow auth state to update
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 500);
     } catch (err) {
       console.error('Signup error:', err);
       if (err instanceof Error) {
@@ -82,6 +85,7 @@ const Signup = () => {
                   onChange={(e) => setName(e.target.value)}
                   required
                   className="border-beer-dark focus:ring-beer-amber"
+                  autoComplete="name"
                 />
               </div>
               
@@ -95,6 +99,7 @@ const Signup = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   className="border-beer-dark focus:ring-beer-amber"
+                  autoComplete="email"
                 />
               </div>
               
@@ -107,6 +112,7 @@ const Signup = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   className="border-beer-dark focus:ring-beer-amber"
+                  autoComplete="new-password"
                 />
               </div>
               
@@ -119,6 +125,7 @@ const Signup = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   className="border-beer-dark focus:ring-beer-amber"
+                  autoComplete="new-password"
                 />
               </div>
             </CardContent>
