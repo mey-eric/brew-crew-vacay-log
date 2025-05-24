@@ -1,201 +1,169 @@
 
-import React, { useState } from 'react';
-import { Beer, Plus, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Beer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/components/ui/use-toast';
 import { useBeer } from '@/contexts/BeerContext';
+import { supabase } from '@/lib/supabase';
 
-const BEER_TYPES = [
-  "Lager",
-  "Pilsner",
-  "IPA",
-  "Pale Ale",
-  "Stout",
-  "Porter",
-  "Wheat Beer",
-  "Amber Ale",
-  "Brown Ale",
-  "Sour",
-  "Other"
-];
-
-const COMMON_SIZES = [
-  { label: "Small (330ml)", value: 330 },
-  { label: "Medium (500ml)", value: 500 },
-  { label: "Large (1L)", value: 1000 },
-];
+interface BeerType {
+  id: string;
+  name: string;
+  alcohol_percentage: number;
+}
 
 const AddBeerForm = () => {
-  const [unit, setUnit] = useState<'ml' | 'l'>('ml');
-  const [size, setSize] = useState<number | string>(500);
-  const [customSize, setCustomSize] = useState<boolean>(false);
-  const [type, setType] = useState<string>(BEER_TYPES[0]);
   const { addEntry, isLoading } = useBeer();
-  const { toast } = useToast();
+  const [size, setSize] = useState<number>(500);
+  const [selectedBeerType, setSelectedBeerType] = useState<string>('');
+  const [beerTypes, setBeerTypes] = useState<BeerType[]>([]);
+  const [customAlcoholPercentage, setCustomAlcoholPercentage] = useState<number>(5.0);
 
-  const handleSizeChange = (value: string) => {
-    if (value === 'custom') {
-      setCustomSize(true);
-      setSize('');
-    } else {
-      setCustomSize(false);
-      setSize(parseInt(value));
-    }
-  };
+  // Load beer types from database
+  useEffect(() => {
+    const loadBeerTypes = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('beer_types')
+          .select('*')
+          .order('name');
+        
+        if (error) throw error;
+        setBeerTypes(data || []);
+      } catch (error) {
+        console.error('Error loading beer types:', error);
+      }
+    };
 
-  const handleSubmit = (e: React.FormEvent) => {
+    loadBeerTypes();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    let finalSize: number;
-    
-    if (typeof size === 'string') {
-      finalSize = parseInt(size);
-      if (isNaN(finalSize) || finalSize <= 0) {
-        toast({
-          title: "Invalid size",
-          description: "Please enter a valid beer size.",
-          variant: "destructive",
-        });
-        return;
+    if (!size || size <= 0) {
+      return;
+    }
+
+    let beerTypeName = 'Other';
+    let alcoholPercentage = customAlcoholPercentage;
+
+    if (selectedBeerType) {
+      const selectedType = beerTypes.find(type => type.id === selectedBeerType);
+      if (selectedType) {
+        beerTypeName = selectedType.name;
+        alcoholPercentage = selectedType.alcohol_percentage;
       }
-    } else {
-      finalSize = size;
     }
+
+    await addEntry(size, beerTypeName, alcoholPercentage);
     
-    // Convert to milliliters if necessary
-    if (unit === 'l') {
-      finalSize = finalSize * 1000;
-    }
-    
-    addEntry(finalSize, type);
-    
-    // Reset form to default values
+    // Reset form
     setSize(500);
-    setCustomSize(false);
-    setType(BEER_TYPES[0]);
-    setUnit('ml');
+    setSelectedBeerType('');
+    setCustomAlcoholPercentage(5.0);
   };
+
+  const selectedType = beerTypes.find(type => type.id === selectedBeerType);
 
   return (
     <Card className="border-beer-dark">
       <CardHeader className="bg-beer-amber text-beer-dark rounded-t-md">
         <CardTitle className="flex items-center text-xl font-bold">
           <Beer className="mr-2 h-5 w-5" />
-          Add New Beer
+          Add Beer Entry
         </CardTitle>
       </CardHeader>
       
-      <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-6 pt-6">
+      <CardContent className="pt-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="beer-type">Beer Type</Label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger id="beer-type" className="border-beer-dark focus:ring-beer-amber">
-                <SelectValue placeholder="Select Beer Type" />
+            <Select value={selectedBeerType} onValueChange={setSelectedBeerType}>
+              <SelectTrigger className="border-beer-dark">
+                <SelectValue placeholder="Select beer type" />
               </SelectTrigger>
               <SelectContent>
-                {BEER_TYPES.map((beerType) => (
-                  <SelectItem key={beerType} value={beerType}>
-                    {beerType}
+                {beerTypes.map((type) => (
+                  <SelectItem key={type.id} value={type.id}>
+                    {type.name} ({type.alcohol_percentage}% ABV)
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          
+
+          {!selectedBeerType && (
+            <div className="space-y-2">
+              <Label htmlFor="custom-alcohol">Custom Alcohol % (ABV)</Label>
+              <Input
+                id="custom-alcohol"
+                type="number"
+                min="0"
+                max="20"
+                step="0.1"
+                value={customAlcoholPercentage}
+                onChange={(e) => setCustomAlcoholPercentage(parseFloat(e.target.value) || 0)}
+                className="border-beer-dark focus:ring-beer-amber"
+              />
+            </div>
+          )}
+
           <div className="space-y-2">
-            <Label>Size</Label>
-            {!customSize ? (
-              <div className="grid grid-cols-3 gap-3">
-                {COMMON_SIZES.map((option) => (
-                  <Button
-                    key={option.value}
-                    type="button"
-                    variant={size === option.value ? "default" : "outline"}
-                    className={size === option.value 
-                      ? "bg-beer-amber text-beer-dark hover:bg-beer-dark hover:text-beer-cream" 
-                      : "border-beer-dark text-beer-dark hover:bg-beer-amber"}
-                    onClick={() => handleSizeChange(option.value.toString())}
-                  >
-                    {option.label}
-                  </Button>
-                ))}
+            <Label htmlFor="size">Size (ml)</Label>
+            <div className="flex space-x-2">
+              {[330, 500, 1000].map((presetSize) => (
                 <Button
+                  key={presetSize}
                   type="button"
-                  variant="outline"
-                  className="border-beer-dark text-beer-dark hover:bg-beer-amber"
-                  onClick={() => handleSizeChange('custom')}
+                  variant={size === presetSize ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSize(presetSize)}
+                  className={size === presetSize ? "bg-beer-amber text-beer-dark" : "border-beer-dark text-beer-dark hover:bg-beer-cream"}
                 >
-                  Custom Size
+                  {presetSize}ml
                 </Button>
-              </div>
-            ) : (
-              <div className="flex space-x-2">
-                <div className="flex-1">
-                  <Input
-                    type="number"
-                    value={size.toString()}
-                    onChange={(e) => setSize(e.target.value)}
-                    placeholder="Enter size"
-                    className="border-beer-dark focus:ring-beer-amber"
-                    min="1"
-                  />
-                </div>
-                <RadioGroup
-                  value={unit}
-                  onValueChange={(value) => setUnit(value as 'ml' | 'l')}
-                  className="flex space-x-2"
-                >
-                  <div className="flex items-center space-x-1">
-                    <RadioGroupItem value="ml" id="ml" className="text-beer-amber border-beer-dark" />
-                    <Label htmlFor="ml">ml</Label>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <RadioGroupItem value="l" id="l" className="text-beer-amber border-beer-dark" />
-                    <Label htmlFor="l">L</Label>
-                  </div>
-                </RadioGroup>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="border-beer-dark text-beer-dark hover:bg-beer-amber"
-                  onClick={() => {
-                    setCustomSize(false);
-                    setSize(500);
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            )}
+              ))}
+            </div>
+            <Input
+              id="size"
+              type="number"
+              min="1"
+              max="2000"
+              value={size}
+              onChange={(e) => setSize(parseInt(e.target.value) || 0)}
+              className="border-beer-dark focus:ring-beer-amber"
+              placeholder="Custom size in ml"
+            />
           </div>
-        </CardContent>
-        
-        <CardFooter>
+
+          {selectedType && (
+            <div className="p-3 bg-beer-cream rounded border border-beer-dark">
+              <p className="text-sm text-beer-dark">
+                <strong>{selectedType.name}</strong> - {selectedType.alcohol_percentage}% ABV
+              </p>
+            </div>
+          )}
+
           <Button 
             type="submit" 
             className="w-full bg-beer-amber hover:bg-beer-dark text-beer-dark hover:text-beer-cream"
-            disabled={isLoading}
+            disabled={isLoading || !size || size <= 0}
           >
             {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Adding...
-              </>
+              "Adding..."
             ) : (
               <>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Beer
+                Add Beer ({size}ml, {selectedType ? selectedType.alcohol_percentage : customAlcoholPercentage}% ABV)
               </>
             )}
           </Button>
-        </CardFooter>
-      </form>
+        </form>
+      </CardContent>
     </Card>
   );
 };

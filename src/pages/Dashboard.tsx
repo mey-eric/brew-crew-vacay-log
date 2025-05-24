@@ -6,6 +6,7 @@ import { useBeer } from '@/contexts/BeerContext';
 import Navbar from '@/components/Navbar';
 import AddBeerForm from '@/components/AddBeerForm';
 import ConsumptionGraph from '@/components/ConsumptionGraph';
+import AlcoholTrackingGraph from '@/components/AlcoholTrackingGraph';
 import Leaderboard from '@/components/Leaderboard';
 import { Loader2 } from 'lucide-react';
 
@@ -45,7 +46,10 @@ const Dashboard = () => {
           </div>
           
           <div className="lg:col-span-2">
-            <ConsumptionGraph />
+            <div className="space-y-6">
+              <AlcoholTrackingGraph />
+              <ConsumptionGraph />
+            </div>
           </div>
         </div>
       </div>
