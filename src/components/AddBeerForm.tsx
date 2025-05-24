@@ -21,20 +21,36 @@ const AddBeerForm = () => {
   const [selectedBeerType, setSelectedBeerType] = useState<string>('');
   const [beerTypes, setBeerTypes] = useState<BeerType[]>([]);
   const [customAlcoholPercentage, setCustomAlcoholPercentage] = useState<number>(5.0);
+  const [loadingBeerTypes, setLoadingBeerTypes] = useState(true);
 
   // Load beer types from database
   useEffect(() => {
     const loadBeerTypes = async () => {
       try {
+        console.log('Loading beer types...');
         const { data, error } = await supabase
           .from('beer_types')
           .select('*')
           .order('name');
         
-        if (error) throw error;
+        if (error) {
+          console.error('Error loading beer types:', error);
+          throw error;
+        }
+        
+        console.log('Beer types loaded:', data);
         setBeerTypes(data || []);
       } catch (error) {
         console.error('Error loading beer types:', error);
+        // Set some default beer types if loading fails
+        setBeerTypes([
+          { id: '1', name: 'Lager', alcohol_percentage: 4.5 },
+          { id: '2', name: 'Pilsner', alcohol_percentage: 4.8 },
+          { id: '3', name: 'Karlovačko', alcohol_percentage: 5.4 },
+          { id: '4', name: 'Other', alcohol_percentage: 5.0 }
+        ]);
+      } finally {
+        setLoadingBeerTypes(false);
       }
     };
 
@@ -59,6 +75,7 @@ const AddBeerForm = () => {
       }
     }
 
+    console.log('Adding beer entry:', { size, beerTypeName, alcoholPercentage });
     await addEntry(size, beerTypeName, alcoholPercentage);
     
     // Reset form
@@ -82,18 +99,22 @@ const AddBeerForm = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="beer-type">Beer Type</Label>
-            <Select value={selectedBeerType} onValueChange={setSelectedBeerType}>
-              <SelectTrigger className="border-beer-dark">
-                <SelectValue placeholder="Select beer type" />
-              </SelectTrigger>
-              <SelectContent>
-                {beerTypes.map((type) => (
-                  <SelectItem key={type.id} value={type.id}>
-                    {type.name} ({type.alcohol_percentage}% ABV)
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {loadingBeerTypes ? (
+              <div className="text-sm text-gray-500">Loading beer types...</div>
+            ) : (
+              <Select value={selectedBeerType} onValueChange={setSelectedBeerType}>
+                <SelectTrigger className="border-beer-dark">
+                  <SelectValue placeholder="Select beer type or leave blank for custom" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border border-gray-300 shadow-lg z-50">
+                  {beerTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.id}>
+                      {type.name} ({type.alcohol_percentage}% ABV)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {!selectedBeerType && (
