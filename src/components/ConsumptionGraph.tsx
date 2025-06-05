@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
-import { ChartBar, Calendar, Filter } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ChartBar, Calendar, Filter, TrendingUp } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ComposedChart } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useBeer } from '@/contexts/BeerContext';
 import { useUser } from '@/contexts/UserContext';
 
@@ -55,7 +56,7 @@ const ConsumptionGraph = () => {
     return filteredEntries;
   };
 
-  // Prepare data for the chart - aggregate by day
+  // Prepare data for the bar chart - aggregate by day
   const prepareChartData = () => {
     const filteredData = getFilteredData();
     const aggregatedData: Record<string, Record<string, number>> = {};
@@ -104,7 +105,45 @@ const ConsumptionGraph = () => {
       }));
   };
 
+  // Prepare cumulative data for line chart
+  const prepareCumulativeData = () => {
+    const filteredData = getFilteredData();
+    
+    // Sort all entries by timestamp
+    const sortedEntries = filteredData.sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+    
+    // Track cumulative consumption for each user
+    const userCumulatives: Record<string, number> = {};
+    users.forEach(user => {
+      userCumulatives[user.name] = 0;
+    });
+    
+    const cumulativeData: Array<{ timestamp: string, date: string, [key: string]: any }> = [];
+    
+    sortedEntries.forEach(entry => {
+      userCumulatives[entry.userName] += entry.size / 1000; // Convert to liters
+      
+      cumulativeData.push({
+        timestamp: entry.timestamp,
+        date: new Date(entry.timestamp).toLocaleDateString(),
+        time: new Date(entry.timestamp).toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }),
+        ...Object.fromEntries(
+          users.map(user => [`${user.name}_cumulative`, userCumulatives[user.name]])
+        )
+      });
+    });
+    
+    return cumulativeData;
+  };
+
   const chartData = prepareChartData();
+  const cumulativeData = prepareCumulativeData();
+  
   const userColors = {
     John: "#F2A900",  // amber
     Jane: "#B22222",  // red
@@ -114,14 +153,14 @@ const ConsumptionGraph = () => {
   
   return (
     <Card className="border-beer-dark">
-      <CardHeader className="bg-beer-amber text-beer-dark rounded-t-md flex flex-row items-center justify-between">
-        <CardTitle className="flex items-center text-xl font-bold">
-          <ChartBar className="mr-2 h-5 w-5" />
+      <CardHeader className="bg-beer-amber text-beer-dark rounded-t-md">
+        <CardTitle className="flex items-center text-lg md:text-xl font-bold">
+          <ChartBar className="mr-2 h-4 w-4 md:h-5 md:w-5" />
           Beer Consumption
         </CardTitle>
-        <div className="flex space-x-2">
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
           <Select value={timeRange} onValueChange={(value) => setTimeRange(value as TimeRange)}>
-            <SelectTrigger className="w-[120px] border-beer-dark bg-beer-cream text-beer-dark">
+            <SelectTrigger className="w-full sm:w-[120px] border-beer-dark bg-beer-cream text-beer-dark">
               <Calendar className="mr-2 h-4 w-4" />
               <SelectValue placeholder="Time Range" />
             </SelectTrigger>
@@ -134,7 +173,7 @@ const ConsumptionGraph = () => {
           </Select>
           
           <Select value={selectedUser} onValueChange={setSelectedUser}>
-            <SelectTrigger className="w-[160px] border-beer-dark bg-beer-cream text-beer-dark">
+            <SelectTrigger className="w-full sm:w-[160px] border-beer-dark bg-beer-cream text-beer-dark">
               <Filter className="mr-2 h-4 w-4" />
               <SelectValue placeholder="Filter by User" />
             </SelectTrigger>
@@ -150,59 +189,136 @@ const ConsumptionGraph = () => {
         </div>
       </CardHeader>
       
-      <CardContent className="pt-6">
-        <div className="h-[300px]">
-          {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartData}
-                margin={{
-                  top: 5,
-                  right: 30,
-                  left: 20,
-                  bottom: 30,
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis 
-                  dataKey="date" 
-                  angle={-45}
-                  textAnchor="end"
-                  height={70} 
-                  tick={{ fontSize: 12 }}
-                />
-                <YAxis 
-                  label={{ 
-                    value: 'Liters', 
-                    angle: -90, 
-                    position: 'insideLeft',
-                    style: { textAnchor: 'middle' }
-                  }} 
-                />
-                <Tooltip 
-                  formatter={(value) => [`${value} L`, ""]}
-                  labelFormatter={(label) => `Date: ${label}`}
-                />
-                <Legend 
-                  verticalAlign="top"
-                  wrapperStyle={{ paddingBottom: 10 }}
-                />
-                {(selectedUser === 'all' ? users : users.filter(u => u.id === selectedUser)).map((user) => (
-                  <Bar 
-                    key={user.id} 
-                    dataKey={user.name} 
-                    fill={userColors[user.name as keyof typeof userColors] || "#8884d8"} 
-                    name={user.name}
-                  />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-full flex items-center justify-center">
-              <p className="text-gray-500">No data available for the selected time range.</p>
+      <CardContent className="pt-4 md:pt-6">
+        <Tabs defaultValue="daily" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsTrigger value="daily" className="flex items-center">
+              <ChartBar className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Daily</span>
+            </TabsTrigger>
+            <TabsTrigger value="cumulative" className="flex items-center">
+              <TrendingUp className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Cumulative</span>
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="daily">
+            <div className="h-[250px] md:h-[300px]">
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={chartData}
+                    margin={{
+                      top: 5,
+                      right: 30,
+                      left: 20,
+                      bottom: 30,
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis 
+                      dataKey="date" 
+                      angle={-45}
+                      textAnchor="end"
+                      height={70} 
+                      tick={{ fontSize: 10 }}
+                    />
+                    <YAxis 
+                      label={{ 
+                        value: 'Liters', 
+                        angle: -90, 
+                        position: 'insideLeft',
+                        style: { textAnchor: 'middle', fontSize: 12 }
+                      }} 
+                      tick={{ fontSize: 10 }}
+                    />
+                    <Tooltip 
+                      formatter={(value) => [`${value} L`, ""]}
+                      labelFormatter={(label) => `Date: ${label}`}
+                    />
+                    <Legend 
+                      verticalAlign="top"
+                      wrapperStyle={{ paddingBottom: 10, fontSize: 12 }}
+                    />
+                    {(selectedUser === 'all' ? users : users.filter(u => u.id === selectedUser)).map((user) => (
+                      <Bar 
+                        key={user.id} 
+                        dataKey={user.name} 
+                        fill={userColors[user.name as keyof typeof userColors] || "#8884d8"} 
+                        name={user.name}
+                      />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-gray-500 text-sm text-center px-4">No data available for the selected time range.</p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </TabsContent>
+          
+          <TabsContent value="cumulative">
+            <div className="h-[250px] md:h-[300px]">
+              {cumulativeData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={cumulativeData}
+                    margin={{
+                      top: 5,
+                      right: 30,
+                      left: 20,
+                      bottom: 30,
+                    }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis 
+                      dataKey="time"
+                      angle={-45}
+                      textAnchor="end"
+                      height={70} 
+                      tick={{ fontSize: 10 }}
+                    />
+                    <YAxis 
+                      label={{ 
+                        value: 'Total Liters', 
+                        angle: -90, 
+                        position: 'insideLeft',
+                        style: { textAnchor: 'middle', fontSize: 12 }
+                      }} 
+                      tick={{ fontSize: 10 }}
+                    />
+                    <Tooltip 
+                      formatter={(value, name) => [`${Number(value).toFixed(2)} L`, String(name).replace('_cumulative', '')]}
+                      labelFormatter={(label) => `Time: ${label}`}
+                    />
+                    <Legend 
+                      verticalAlign="top"
+                      wrapperStyle={{ paddingBottom: 10, fontSize: 12 }}
+                    />
+                    {(selectedUser === 'all' ? users : users.filter(u => u.id === selectedUser)).map((user, index) => (
+                      <Line 
+                        key={user.id}
+                        type="monotone" 
+                        dataKey={`${user.name}_cumulative`} 
+                        stroke={userColors[user.name as keyof typeof userColors] || "#8884d8"}
+                        strokeWidth={2}
+                        dot={{ r: 2 }}
+                        activeDot={{ r: 4 }}
+                        name={user.name}
+                        connectNulls={false}
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center">
+                  <p className="text-gray-500 text-sm text-center px-4">No cumulative data available for the selected time range.</p>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
