@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Wine, Clock, TrendingDown, Users, Calendar } from 'lucide-react';
@@ -288,7 +287,7 @@ const AlcoholTracking = () => {
                       tick={{ fontSize: 10 }}
                     />
                     <Tooltip 
-                      formatter={(value, name) => [`${value}‰`, name.replace('_bac', '')]}
+                      formatter={(value, name) => [`${value}‰`, String(name).replace('_bac', '')]}
                       labelFormatter={(label) => `Time: ${label}`}
                     />
                     <ReferenceLine y={0.5} stroke="#FFA500" strokeDasharray="5 5" label="0.5‰" />
