@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ChartBar, Calendar, Filter, TrendingUp } from 'lucide-react';
+import { ChartBar, Calendar, Filter, TrendingUp, Maximize2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ComposedChart } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,14 +8,45 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useBeer } from '@/contexts/BeerContext';
 import { useUser } from '@/contexts/UserContext';
+import { useNavigate } from 'react-router-dom';
 
 type TimeRange = '24h' | '7d' | '30d' | 'all';
 
-const ConsumptionGraph = () => {
+interface ConsumptionGraphProps {
+  isFullScreen?: boolean;
+}
+
+const ConsumptionGraph: React.FC<ConsumptionGraphProps> = ({ isFullScreen = false }) => {
   const { entries, getUserEntries } = useBeer();
   const { users } = useUser();
+  const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
   const [selectedUser, setSelectedUser] = useState<string | 'all'>('all');
+
+  // Generate consistent colors for each user
+  const getUserColors = () => {
+    const colors = [
+      "#F2A900",  // amber
+      "#B22222",  // red
+      "#442412",  // dark brown
+      "#2E8B57",  // sea green
+      "#4169E1",  // royal blue
+      "#FF6347",  // tomato
+      "#32CD32",  // lime green
+      "#9370DB",  // medium purple
+      "#FF1493",  // deep pink
+      "#00CED1"   // dark turquoise
+    ];
+    
+    const userColors: Record<string, string> = {};
+    users.forEach((user, index) => {
+      userColors[user.name] = colors[index % colors.length];
+    });
+    
+    return userColors;
+  };
+
+  const userColors = getUserColors();
 
   // Calculate date range based on selection
   const getDateRange = (): [Date, Date] => {
@@ -144,20 +175,35 @@ const ConsumptionGraph = () => {
   const chartData = prepareChartData();
   const cumulativeData = prepareCumulativeData();
   
-  const userColors = {
-    John: "#F2A900",  // amber
-    Jane: "#B22222",  // red
-    Mike: "#442412",  // dark
-    Sarah: "#2E8B57"  // sea green
+  const handleFullScreenClick = () => {
+    navigate('/beer-consumption');
   };
+
+  const chartHeight = isFullScreen ? 500 : 250;
+  const responsiveHeight = isFullScreen ? chartHeight : `${chartHeight}px md:${chartHeight + 50}px`;
   
   return (
     <Card className="border-beer-dark">
       <CardHeader className="bg-beer-amber text-beer-dark rounded-t-md">
-        <CardTitle className="flex items-center text-lg md:text-xl font-bold">
-          <ChartBar className="mr-2 h-4 w-4 md:h-5 md:w-5" />
-          Beer Consumption
-        </CardTitle>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <CardTitle className="flex items-center text-lg md:text-xl font-bold">
+            <ChartBar className="mr-2 h-4 w-4 md:h-5 md:w-5" />
+            Beer Consumption
+          </CardTitle>
+          
+          {!isFullScreen && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleFullScreenClick}
+              className="bg-beer-cream hover:bg-beer-light border-beer-dark text-beer-dark"
+            >
+              <Maximize2 className="mr-2 h-4 w-4" />
+              View Full Screen
+            </Button>
+          )}
+        </div>
+        
         <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
           <Select value={timeRange} onValueChange={(value) => setTimeRange(value as TimeRange)}>
             <SelectTrigger className="w-full sm:w-[120px] border-beer-dark bg-beer-cream text-beer-dark">
@@ -203,7 +249,7 @@ const ConsumptionGraph = () => {
           </TabsList>
           
           <TabsContent value="daily">
-            <div className="h-[250px] md:h-[300px]">
+            <div className={`h-[${responsiveHeight}]`}>
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
@@ -212,7 +258,7 @@ const ConsumptionGraph = () => {
                       top: 5,
                       right: 30,
                       left: 20,
-                      bottom: 30,
+                      bottom: isFullScreen ? 50 : 30,
                     }}
                   >
                     <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
@@ -220,17 +266,17 @@ const ConsumptionGraph = () => {
                       dataKey="date" 
                       angle={-45}
                       textAnchor="end"
-                      height={70} 
-                      tick={{ fontSize: 10 }}
+                      height={isFullScreen ? 90 : 70} 
+                      tick={{ fontSize: isFullScreen ? 12 : 10 }}
                     />
                     <YAxis 
                       label={{ 
                         value: 'Liters', 
                         angle: -90, 
                         position: 'insideLeft',
-                        style: { textAnchor: 'middle', fontSize: 12 }
+                        style: { textAnchor: 'middle', fontSize: isFullScreen ? 14 : 12 }
                       }} 
-                      tick={{ fontSize: 10 }}
+                      tick={{ fontSize: isFullScreen ? 12 : 10 }}
                     />
                     <Tooltip 
                       formatter={(value) => [`${value} L`, ""]}
@@ -238,13 +284,13 @@ const ConsumptionGraph = () => {
                     />
                     <Legend 
                       verticalAlign="top"
-                      wrapperStyle={{ paddingBottom: 10, fontSize: 12 }}
+                      wrapperStyle={{ paddingBottom: 10, fontSize: isFullScreen ? 14 : 12 }}
                     />
                     {(selectedUser === 'all' ? users : users.filter(u => u.id === selectedUser)).map((user) => (
                       <Bar 
                         key={user.id} 
                         dataKey={user.name} 
-                        fill={userColors[user.name as keyof typeof userColors] || "#8884d8"} 
+                        fill={userColors[user.name]} 
                         name={user.name}
                       />
                     ))}
@@ -259,7 +305,7 @@ const ConsumptionGraph = () => {
           </TabsContent>
           
           <TabsContent value="cumulative">
-            <div className="h-[250px] md:h-[300px]">
+            <div className={`h-[${responsiveHeight}]`}>
               {cumulativeData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
@@ -268,7 +314,7 @@ const ConsumptionGraph = () => {
                       top: 5,
                       right: 30,
                       left: 20,
-                      bottom: 30,
+                      bottom: isFullScreen ? 50 : 30,
                     }}
                   >
                     <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
@@ -276,17 +322,17 @@ const ConsumptionGraph = () => {
                       dataKey="time"
                       angle={-45}
                       textAnchor="end"
-                      height={70} 
-                      tick={{ fontSize: 10 }}
+                      height={isFullScreen ? 90 : 70} 
+                      tick={{ fontSize: isFullScreen ? 12 : 10 }}
                     />
                     <YAxis 
                       label={{ 
                         value: 'Total Liters', 
                         angle: -90, 
                         position: 'insideLeft',
-                        style: { textAnchor: 'middle', fontSize: 12 }
+                        style: { textAnchor: 'middle', fontSize: isFullScreen ? 14 : 12 }
                       }} 
-                      tick={{ fontSize: 10 }}
+                      tick={{ fontSize: isFullScreen ? 12 : 10 }}
                     />
                     <Tooltip 
                       formatter={(value, name) => [`${Number(value).toFixed(2)} L`, String(name).replace('_cumulative', '')]}
@@ -294,17 +340,17 @@ const ConsumptionGraph = () => {
                     />
                     <Legend 
                       verticalAlign="top"
-                      wrapperStyle={{ paddingBottom: 10, fontSize: 12 }}
+                      wrapperStyle={{ paddingBottom: 10, fontSize: isFullScreen ? 14 : 12 }}
                     />
                     {(selectedUser === 'all' ? users : users.filter(u => u.id === selectedUser)).map((user, index) => (
                       <Line 
                         key={user.id}
                         type="monotone" 
                         dataKey={`${user.name}_cumulative`} 
-                        stroke={userColors[user.name as keyof typeof userColors] || "#8884d8"}
-                        strokeWidth={2}
-                        dot={{ r: 2 }}
-                        activeDot={{ r: 4 }}
+                        stroke={userColors[user.name]}
+                        strokeWidth={isFullScreen ? 3 : 2}
+                        dot={{ r: isFullScreen ? 3 : 2 }}
+                        activeDot={{ r: isFullScreen ? 5 : 4 }}
                         name={user.name}
                         connectNulls={false}
                       />
