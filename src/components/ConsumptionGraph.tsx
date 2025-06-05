@@ -23,6 +23,11 @@ const ConsumptionGraph: React.FC<ConsumptionGraphProps> = ({ isFullScreen = fals
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
   const [selectedUser, setSelectedUser] = useState<string | 'all'>('all');
 
+  console.log('ConsumptionGraph - entries:', entries);
+  console.log('ConsumptionGraph - users:', users);
+  console.log('ConsumptionGraph - timeRange:', timeRange);
+  console.log('ConsumptionGraph - selectedUser:', selectedUser);
+
   // Generate consistent colors for each user
   const getUserColors = () => {
     const colors = [
@@ -65,39 +70,62 @@ const ConsumptionGraph: React.FC<ConsumptionGraphProps> = ({ isFullScreen = fals
         break;
       case 'all':
       default:
-        startDate.setFullYear(startDate.getFullYear() - 10); // Essentially "all" data
+        startDate.setFullYear(2020); // Go back far enough to capture all data
     }
     
+    console.log('Date range:', { startDate, endDate, timeRange });
     return [startDate, endDate];
   };
 
   // Filter data based on date range and selected user
   const getFilteredData = () => {
+    if (!entries || entries.length === 0) {
+      console.log('No entries available');
+      return [];
+    }
+
     const [startDate, endDate] = getDateRange();
     
     let filteredEntries = entries.filter(entry => {
       const entryDate = new Date(entry.timestamp);
-      return entryDate >= startDate && entryDate <= endDate;
+      const inRange = entryDate >= startDate && entryDate <= endDate;
+      console.log('Entry date check:', { 
+        timestamp: entry.timestamp, 
+        entryDate, 
+        startDate, 
+        endDate, 
+        inRange 
+      });
+      return inRange;
     });
     
     if (selectedUser !== 'all') {
       filteredEntries = filteredEntries.filter(entry => entry.userId === selectedUser);
     }
     
+    console.log('Filtered entries:', filteredEntries);
     return filteredEntries;
   };
 
   // Prepare data for the bar chart - aggregate by day
   const prepareChartData = () => {
     const filteredData = getFilteredData();
+    
+    if (filteredData.length === 0) {
+      console.log('No filtered data for chart');
+      return [];
+    }
+
     const aggregatedData: Record<string, Record<string, number>> = {};
     
-    // Initialize date range
-    const [startDate, endDate] = getDateRange();
-    const dateIterator = new Date(startDate);
+    // First, process all entries to find actual date range
+    const actualDates = filteredData.map(entry => new Date(entry.timestamp).toISOString().split('T')[0]);
+    const uniqueDates = [...new Set(actualDates)].sort();
     
-    while (dateIterator <= endDate) {
-      const dateStr = dateIterator.toISOString().split('T')[0];
+    console.log('Unique dates in data:', uniqueDates);
+    
+    // Initialize with actual dates from data
+    uniqueDates.forEach(dateStr => {
       aggregatedData[dateStr] = {};
       
       // Initialize with zero for each user
@@ -111,10 +139,7 @@ const ConsumptionGraph: React.FC<ConsumptionGraphProps> = ({ isFullScreen = fals
           aggregatedData[dateStr][user.name] = 0;
         }
       }
-      
-      // Move to next day
-      dateIterator.setDate(dateIterator.getDate() + 1);
-    }
+    });
     
     // Aggregate consumption data
     filteredData.forEach(entry => {
@@ -128,17 +153,25 @@ const ConsumptionGraph: React.FC<ConsumptionGraphProps> = ({ isFullScreen = fals
     });
     
     // Convert to array format for Recharts
-    return Object.keys(aggregatedData)
+    const chartData = Object.keys(aggregatedData)
       .sort()
       .map(date => ({
         date: date,
         ...aggregatedData[date]
       }));
+    
+    console.log('Chart data prepared:', chartData);
+    return chartData;
   };
 
   // Prepare cumulative data for line chart
   const prepareCumulativeData = () => {
     const filteredData = getFilteredData();
+    
+    if (filteredData.length === 0) {
+      console.log('No filtered data for cumulative chart');
+      return [];
+    }
     
     // Sort all entries by timestamp
     const sortedEntries = filteredData.sort((a, b) => 
@@ -147,28 +180,39 @@ const ConsumptionGraph: React.FC<ConsumptionGraphProps> = ({ isFullScreen = fals
     
     // Track cumulative consumption for each user
     const userCumulatives: Record<string, number> = {};
-    users.forEach(user => {
-      userCumulatives[user.name] = 0;
-    });
     
-    const cumulativeData: Array<{ timestamp: string, date: string, [key: string]: any }> = [];
+    // Initialize cumulative values for relevant users
+    if (selectedUser === 'all') {
+      users.forEach(user => {
+        userCumulatives[user.name] = 0;
+      });
+    } else {
+      const user = users.find(u => u.id === selectedUser);
+      if (user) {
+        userCumulatives[user.name] = 0;
+      }
+    }
+    
+    const cumulativeData: Array<{ timestamp: string, date: string, time: string, [key: string]: any }> = [];
     
     sortedEntries.forEach(entry => {
-      userCumulatives[entry.userName] += entry.size / 1000; // Convert to liters
+      userCumulatives[entry.userName] = (userCumulatives[entry.userName] || 0) + (entry.size / 1000); // Convert to liters
       
+      const entryDate = new Date(entry.timestamp);
       cumulativeData.push({
         timestamp: entry.timestamp,
-        date: new Date(entry.timestamp).toLocaleDateString(),
-        time: new Date(entry.timestamp).toLocaleTimeString('en-US', { 
+        date: entryDate.toLocaleDateString(),
+        time: entryDate.toLocaleTimeString('en-US', { 
           hour: '2-digit', 
           minute: '2-digit' 
         }),
         ...Object.fromEntries(
-          users.map(user => [`${user.name}_cumulative`, userCumulatives[user.name]])
+          Object.keys(userCumulatives).map(userName => [`${userName}_cumulative`, userCumulatives[userName]])
         )
       });
     });
     
+    console.log('Cumulative data prepared:', cumulativeData);
     return cumulativeData;
   };
 
