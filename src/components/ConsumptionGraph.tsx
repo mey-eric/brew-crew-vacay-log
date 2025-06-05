@@ -56,21 +56,28 @@ const ConsumptionGraph: React.FC<ConsumptionGraphProps> = ({ isFullScreen = fals
   // Calculate date range based on selection
   const getDateRange = (): [Date, Date] => {
     const endDate = new Date();
+    // Add a small buffer to ensure we capture all of today's data
+    endDate.setHours(23, 59, 59, 999);
+    
     const startDate = new Date();
     
     switch (timeRange) {
       case '24h':
         startDate.setDate(endDate.getDate() - 1);
+        startDate.setHours(0, 0, 0, 0);
         break;
       case '7d':
         startDate.setDate(endDate.getDate() - 7);
+        startDate.setHours(0, 0, 0, 0);
         break;
       case '30d':
         startDate.setDate(endDate.getDate() - 30);
+        startDate.setHours(0, 0, 0, 0);
         break;
       case 'all':
       default:
-        startDate.setFullYear(2020); // Go back far enough to capture all data
+        startDate.setFullYear(2020, 0, 1); // January 1, 2020
+        startDate.setHours(0, 0, 0, 0);
     }
     
     console.log('Date range:', { startDate, endDate, timeRange });
@@ -293,7 +300,7 @@ const ConsumptionGraph: React.FC<ConsumptionGraphProps> = ({ isFullScreen = fals
           </TabsList>
           
           <TabsContent value="daily">
-            <div className={`h-[${responsiveHeight}]`}>
+            <div style={{ height: isFullScreen ? 500 : 250 }}>
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
@@ -349,7 +356,7 @@ const ConsumptionGraph: React.FC<ConsumptionGraphProps> = ({ isFullScreen = fals
           </TabsContent>
           
           <TabsContent value="cumulative">
-            <div className={`h-[${responsiveHeight}]`}>
+            <div style={{ height: isFullScreen ? 500 : 250 }}>
               {cumulativeData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
