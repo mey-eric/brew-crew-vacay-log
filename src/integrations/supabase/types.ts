@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       beer_entries: {
         Row: {
+          alcohol_percentage: number | null
           created_at: string
           id: string
           size: number | null
@@ -20,6 +21,7 @@ export type Database = {
           userName: string | null
         }
         Insert: {
+          alcohol_percentage?: number | null
           created_at?: string
           id?: string
           size?: number | null
@@ -29,6 +31,7 @@ export type Database = {
           userName?: string | null
         }
         Update: {
+          alcohol_percentage?: number | null
           created_at?: string
           id?: string
           size?: number | null
@@ -46,6 +49,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      beer_types: {
+        Row: {
+          alcohol_percentage: number
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          alcohol_percentage: number
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          alcohol_percentage?: number
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
       }
       user_profiles: {
         Row: {
