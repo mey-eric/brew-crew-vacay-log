@@ -52,7 +52,7 @@ const PurchaseHistory = () => {
     }
   };
 
-  const totalSpent = purchases.reduce((sum, purchase) => sum + purchase.cost, 0);
+  const totalSpent = purchases.reduce((sum, purchase) => sum + (purchase.cost * purchase.quantity), 0);
   const totalItems = purchases.reduce((sum, purchase) => sum + purchase.quantity, 0);
 
   if (isLoading) {
@@ -96,7 +96,7 @@ const PurchaseHistory = () => {
                   <DollarSign className="h-5 w-5 text-beer-dark mr-2" />
                   <div>
                     <p className="text-sm text-gray-600">Total Spent</p>
-                    <p className="text-2xl font-bold text-beer-dark">${totalSpent.toFixed(2)}</p>
+                    <p className="text-2xl font-bold text-beer-dark">€{(totalSpent).toFixed(2)}</p>
                   </div>
                 </div>
               </div>
@@ -129,9 +129,9 @@ const PurchaseHistory = () => {
                       )}
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-beer-dark">${purchase.cost.toFixed(2)}</p>
+                      <p className="font-bold text-beer-dark">€{(purchase.cost * purchase.quantity).toFixed(2)}</p>
                       <p className="text-sm text-gray-600">
-                        {purchase.quantity} {purchase.quantity_unit}
+                        {purchase.quantity} {purchase.quantity_unit} @ €{purchase.cost.toFixed(2)}/unit
                       </p>
                     </div>
                   </div>

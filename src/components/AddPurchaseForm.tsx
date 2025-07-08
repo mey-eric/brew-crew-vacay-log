@@ -67,7 +67,7 @@ const AddPurchaseForm = () => {
 
       if (error) throw error;
 
-      toast(`Purchase logged! ${formData.quantity} ${formData.quantityUnit} of ${formData.beerName} for $${formData.cost.toFixed(2)}`);
+      toast(`Purchase logged! ${formData.quantity} ${formData.quantityUnit} of ${formData.beerName} for €${(formData.cost * formData.quantity).toFixed(2)} (€${formData.cost.toFixed(2)}/unit)`);
       
       // Reset form
       setFormData({
@@ -164,7 +164,7 @@ const AddPurchaseForm = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="cost">Cost ($) *</Label>
+            <Label htmlFor="cost">Cost per unit (€) *</Label>
             <Input
               id="cost"
               type="number"
@@ -176,6 +176,9 @@ const AddPurchaseForm = () => {
               placeholder="0.00"
               required
             />
+            <p className="text-sm text-gray-600">
+              Total cost: €{(formData.cost * formData.quantity).toFixed(2)}
+            </p>
           </div>
 
           <div className="space-y-2">
