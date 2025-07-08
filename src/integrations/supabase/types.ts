@@ -55,6 +55,54 @@ export type Database = {
           },
         ]
       }
+      beer_purchases: {
+        Row: {
+          beer_name: string
+          beer_type: string | null
+          cost: number
+          created_at: string
+          id: string
+          notes: string | null
+          purchase_date: string
+          quantity: number
+          quantity_unit: string
+          store_name: string | null
+          updated_at: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          beer_name: string
+          beer_type?: string | null
+          cost: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          purchase_date?: string
+          quantity: number
+          quantity_unit?: string
+          store_name?: string | null
+          updated_at?: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          beer_name?: string
+          beer_type?: string | null
+          cost?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          purchase_date?: string
+          quantity?: number
+          quantity_unit?: string
+          store_name?: string | null
+          updated_at?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
       beer_types: {
         Row: {
           alcohol_percentage: number

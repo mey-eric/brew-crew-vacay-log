@@ -5,6 +5,8 @@ import { useUser } from '@/contexts/UserContext';
 import { useBeer } from '@/contexts/BeerContext';
 import Navbar from '@/components/Navbar';
 import AddBeerForm from '@/components/AddBeerForm';
+import AddPurchaseForm from '@/components/AddPurchaseForm';
+import PurchaseHistory from '@/components/PurchaseHistory';
 import ConsumptionGraph from '@/components/ConsumptionGraph';
 import AlcoholTrackingGraph from '@/components/AlcoholTrackingGraph';
 import Leaderboard from '@/components/Leaderboard';
@@ -41,6 +43,8 @@ const Dashboard = () => {
           <div className="lg:col-span-1 order-2 lg:order-1">
             <div className="space-y-4 md:space-y-6">
               <AddBeerForm />
+              <AddPurchaseForm />
+              <PurchaseHistory />
               <Leaderboard />
             </div>
           </div>
