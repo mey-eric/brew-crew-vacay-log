@@ -24,6 +24,7 @@ interface BeerPurchase {
   beer_type: string;
   remaining_quantity: number;
   quantity_unit: string;
+  beer_size: number;
   store_name?: string;
   purchase_date: string;
 }
@@ -127,8 +128,8 @@ const AddBeerForm = () => {
         return;
       }
 
-      // Check if there's enough remaining quantity
-      const consumedUnits = size / 500; // Assuming 500ml per unit, adjust as needed
+      // Check if there's enough remaining quantity and set size based on purchase
+      const consumedUnits = 1; // We're consuming 1 unit from the purchase
       if (consumedUnits > purchase.remaining_quantity) {
         toast(`Not enough remaining quantity. Only ${purchase.remaining_quantity} ${purchase.quantity_unit} left.`);
         return;
@@ -137,13 +138,16 @@ const AddBeerForm = () => {
       beerTypeName = purchase.beer_name;
       purchaseId = purchase.id;
       
+      // Set the size to match the purchase beer size
+      setSize(purchase.beer_size);
+      
       // Get alcohol percentage from beer type
       const matchingBeerType = beerTypes.find(type => type.name === purchase.beer_type);
       if (matchingBeerType) {
         alcoholPercentage = matchingBeerType.alcohol_percentage;
       }
 
-      // Update remaining quantity
+      // Update remaining quantity (subtract 1 unit)
       try {
         const { error } = await supabase
           .from('beer_purchases')
@@ -182,6 +186,24 @@ const AddBeerForm = () => {
     }
   };
 
+  // When consumption source changes to purchase, reset the size 
+  const handleConsumptionSourceChange = (value: 'new' | 'purchase') => {
+    setConsumptionSource(value);
+    if (value === 'new') {
+      setSize(500); // Reset to default
+      setSelectedPurchase('');
+    }
+  };
+
+  // When a purchase is selected, automatically set the size
+  const handlePurchaseChange = (purchaseId: string) => {
+    setSelectedPurchase(purchaseId);
+    const purchase = purchases.find(p => p.id === purchaseId);
+    if (purchase) {
+      setSize(purchase.beer_size);
+    }
+  };
+
   const selectedType = beerTypes.find(type => type.id === selectedBeerType);
 
   return (
@@ -197,7 +219,7 @@ const AddBeerForm = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-3">
             <Label>Consumption Source</Label>
-            <RadioGroup value={consumptionSource} onValueChange={(value: 'new' | 'purchase') => setConsumptionSource(value)}>
+            <RadioGroup value={consumptionSource} onValueChange={handleConsumptionSourceChange}>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="new" id="new" />
                 <Label htmlFor="new">New Beer (not from purchase)</Label>
@@ -219,7 +241,7 @@ const AddBeerForm = () => {
                   No purchases with remaining quantity found. Buy some beer first!
                 </div>
               ) : (
-                <Select value={selectedPurchase} onValueChange={setSelectedPurchase}>
+                <Select value={selectedPurchase} onValueChange={handlePurchaseChange}>
                   <SelectTrigger className="border-beer-dark">
                     <SelectValue placeholder="Select a purchase" />
                   </SelectTrigger>
@@ -229,7 +251,7 @@ const AddBeerForm = () => {
                         <div className="flex items-center space-x-2">
                           <ShoppingCart className="h-4 w-4" />
                           <span>
-                            {purchase.beer_name} - {purchase.remaining_quantity} {purchase.quantity_unit} left
+                            {purchase.beer_name} ({purchase.beer_size}ml) - {purchase.remaining_quantity} {purchase.quantity_unit} left
                             {purchase.store_name && ` (${purchase.store_name})`}
                           </span>
                         </div>
@@ -281,30 +303,40 @@ const AddBeerForm = () => {
 
           <div className="space-y-2">
             <Label htmlFor="size">Size (ml)</Label>
-            <div className="flex space-x-2">
-              {[330, 500, 1000].map((presetSize) => (
-                <Button
-                  key={presetSize}
-                  type="button"
-                  variant={size === presetSize ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSize(presetSize)}
-                  className={size === presetSize ? "bg-beer-amber text-beer-dark" : "border-beer-dark text-beer-dark hover:bg-beer-cream"}
-                >
-                  {presetSize}ml
-                </Button>
-              ))}
-            </div>
-            <Input
-              id="size"
-              type="number"
-              min="1"
-              max="2000"
-              value={size}
-              onChange={(e) => setSize(parseInt(e.target.value) || 0)}
-              className="border-beer-dark focus:ring-beer-amber"
-              placeholder="Custom size in ml"
-            />
+            {consumptionSource === 'purchase' && selectedPurchase ? (
+              <div className="p-3 bg-beer-cream rounded border border-beer-dark">
+                <p className="text-sm text-beer-dark">
+                  Size automatically set to {size}ml based on your purchase
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="flex space-x-2">
+                  {[330, 500, 1000].map((presetSize) => (
+                    <Button
+                      key={presetSize}
+                      type="button"
+                      variant={size === presetSize ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSize(presetSize)}
+                      className={size === presetSize ? "bg-beer-amber text-beer-dark" : "border-beer-dark text-beer-dark hover:bg-beer-cream"}
+                    >
+                      {presetSize}ml
+                    </Button>
+                  ))}
+                </div>
+                <Input
+                  id="size"
+                  type="number"
+                  min="1"
+                  max="2000"
+                  value={size}
+                  onChange={(e) => setSize(parseInt(e.target.value) || 0)}
+                  className="border-beer-dark focus:ring-beer-amber"
+                  placeholder="Custom size in ml"
+                />
+              </>
+            )}
           </div>
 
           {((consumptionSource === 'new' && selectedType) || (consumptionSource === 'purchase' && selectedPurchase)) && (
@@ -320,7 +352,7 @@ const AddBeerForm = () => {
                   const beerType = beerTypes.find(type => type.name === purchase?.beer_type);
                   return purchase ? (
                     <p className="text-sm text-beer-dark">
-                      <strong>{purchase.beer_name}</strong> - {beerType?.alcohol_percentage || 5.0}% ABV
+                      <strong>{purchase.beer_name}</strong> ({purchase.beer_size}ml) - {beerType?.alcohol_percentage || 5.0}% ABV
                       <br />
                       <span className="text-xs">From purchase: {purchase.remaining_quantity} {purchase.quantity_unit} remaining</span>
                     </p>

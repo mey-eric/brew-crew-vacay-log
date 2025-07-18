@@ -75,6 +75,7 @@ export type Database = {
       beer_purchases: {
         Row: {
           beer_name: string
+          beer_size: number | null
           beer_type: string | null
           cost: number
           created_at: string
@@ -91,6 +92,7 @@ export type Database = {
         }
         Insert: {
           beer_name: string
+          beer_size?: number | null
           beer_type?: string | null
           cost: number
           created_at?: string
@@ -107,6 +109,7 @@ export type Database = {
         }
         Update: {
           beer_name?: string
+          beer_size?: number | null
           beer_type?: string | null
           cost?: number
           created_at?: string

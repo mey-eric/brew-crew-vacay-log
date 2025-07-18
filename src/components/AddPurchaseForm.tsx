@@ -40,6 +40,7 @@ const AddPurchaseForm = () => {
     cost: 0,
     quantity: 1,
     quantityUnit: 'bottles',
+    beerSize: 330,
     storeName: '',
     notes: ''
   });
@@ -91,6 +92,7 @@ const AddPurchaseForm = () => {
         cost: formData.cost,
         quantity: formData.quantity,
         quantity_unit: formData.quantityUnit,
+        beer_size: formData.beerSize,
         remaining_quantity: formData.quantity,
         store_name: formData.storeName || null,
         notes: formData.notes || null,
@@ -103,7 +105,7 @@ const AddPurchaseForm = () => {
 
       if (error) throw error;
 
-      toast(`Purchase logged! ${formData.quantity} ${formData.quantityUnit} of ${selectedBeerType.name} for €${(formData.cost * formData.quantity).toFixed(2)} (€${formData.cost.toFixed(2)}/unit)`);
+      toast(`Purchase logged! ${formData.quantity} ${formData.quantityUnit} of ${selectedBeerType.name} (${formData.beerSize}ml each) for €${(formData.cost * formData.quantity).toFixed(2)} (€${formData.cost.toFixed(2)}/unit)`);
       
       // Reset form
       setFormData({
@@ -111,6 +113,7 @@ const AddPurchaseForm = () => {
         cost: 0,
         quantity: 1,
         quantityUnit: 'bottles',
+        beerSize: 330,
         storeName: '',
         notes: ''
       });
@@ -201,6 +204,38 @@ const AddPurchaseForm = () => {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="beer-size">Size per unit (ml) *</Label>
+            <div className="flex space-x-2">
+              {[330, 500, 1000].map((presetSize) => (
+                <Button
+                  key={presetSize}
+                  type="button"
+                  variant={formData.beerSize === presetSize ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleInputChange('beerSize', presetSize)}
+                  className={formData.beerSize === presetSize ? "bg-beer-amber text-beer-dark" : "border-beer-dark text-beer-dark hover:bg-beer-cream"}
+                >
+                  {presetSize}ml
+                </Button>
+              ))}
+            </div>
+            <Input
+              id="beer-size"
+              type="number"
+              min="1"
+              max="2000"
+              value={formData.beerSize}
+              onChange={(e) => handleInputChange('beerSize', parseInt(e.target.value) || 330)}
+              className="border-beer-dark focus:ring-beer-amber"
+              placeholder="Custom size in ml"
+              required
+            />
+            <p className="text-sm text-gray-600">
+              Total volume: {(formData.beerSize * formData.quantity).toFixed(0)}ml
+            </p>
           </div>
 
           <div className="space-y-2">
