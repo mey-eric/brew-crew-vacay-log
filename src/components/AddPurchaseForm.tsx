@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { useUser } from '@/contexts/UserContext';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/components/ui/sonner';
+
+interface BeerType {
+  id: string;
+  name: string;
+  alcohol_percentage: number;
+}
 
 interface BeerPurchase {
   id: string;
@@ -27,9 +33,10 @@ interface BeerPurchase {
 const AddPurchaseForm = () => {
   const { currentUser } = useUser();
   const [isLoading, setIsLoading] = useState(false);
+  const [beerTypes, setBeerTypes] = useState<BeerType[]>([]);
+  const [loadingBeerTypes, setLoadingBeerTypes] = useState(true);
   const [formData, setFormData] = useState({
-    beerName: '',
-    beerType: '',
+    beerTypeId: '',
     cost: 0,
     quantity: 1,
     quantityUnit: 'bottles',
@@ -37,10 +44,32 @@ const AddPurchaseForm = () => {
     notes: ''
   });
 
+  // Load beer types from database
+  useEffect(() => {
+    const loadBeerTypes = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('beer_types')
+          .select('*')
+          .order('name');
+        
+        if (error) throw error;
+        setBeerTypes(data || []);
+      } catch (error) {
+        console.error('Error loading beer types:', error);
+        toast("Failed to load beer types");
+      } finally {
+        setLoadingBeerTypes(false);
+      }
+    };
+
+    loadBeerTypes();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!currentUser || !formData.beerName || formData.cost <= 0 || formData.quantity <= 0) {
+    if (!currentUser || !formData.beerTypeId || formData.cost <= 0 || formData.quantity <= 0) {
       toast("Please fill in all required fields with valid values");
       return;
     }
@@ -48,14 +77,21 @@ const AddPurchaseForm = () => {
     setIsLoading(true);
     
     try {
+      const selectedBeerType = beerTypes.find(type => type.id === formData.beerTypeId);
+      if (!selectedBeerType) {
+        toast("Please select a valid beer type");
+        return;
+      }
+
       const purchaseData = {
         user_id: currentUser.id,
         user_name: currentUser.name,
-        beer_name: formData.beerName,
-        beer_type: formData.beerType || null,
+        beer_name: selectedBeerType.name,
+        beer_type: selectedBeerType.name,
         cost: formData.cost,
         quantity: formData.quantity,
         quantity_unit: formData.quantityUnit,
+        remaining_quantity: formData.quantity,
         store_name: formData.storeName || null,
         notes: formData.notes || null,
         purchase_date: new Date().toISOString()
@@ -67,12 +103,11 @@ const AddPurchaseForm = () => {
 
       if (error) throw error;
 
-      toast(`Purchase logged! ${formData.quantity} ${formData.quantityUnit} of ${formData.beerName} for €${(formData.cost * formData.quantity).toFixed(2)} (€${formData.cost.toFixed(2)}/unit)`);
+      toast(`Purchase logged! ${formData.quantity} ${formData.quantityUnit} of ${selectedBeerType.name} for €${(formData.cost * formData.quantity).toFixed(2)} (€${formData.cost.toFixed(2)}/unit)`);
       
       // Reset form
       setFormData({
-        beerName: '',
-        beerType: '',
+        beerTypeId: '',
         cost: 0,
         quantity: 1,
         quantityUnit: 'bottles',
@@ -94,6 +129,8 @@ const AddPurchaseForm = () => {
     }));
   };
 
+  const selectedBeerType = beerTypes.find(type => type.id === formData.beerTypeId);
+
   return (
     <Card className="border-beer-dark">
       <CardHeader className="bg-beer-amber text-beer-dark rounded-t-md">
@@ -106,29 +143,32 @@ const AddPurchaseForm = () => {
       <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="beer-name">Beer Name *</Label>
-            <Input
-              id="beer-name"
-              type="text"
-              value={formData.beerName}
-              onChange={(e) => handleInputChange('beerName', e.target.value)}
-              className="border-beer-dark focus:ring-beer-amber"
-              placeholder="e.g., Heineken, Budweiser"
-              required
-            />
+            <Label htmlFor="beer-type">Beer Type *</Label>
+            {loadingBeerTypes ? (
+              <div className="text-sm text-gray-500">Loading beer types...</div>
+            ) : (
+              <Select value={formData.beerTypeId} onValueChange={(value) => handleInputChange('beerTypeId', value)}>
+                <SelectTrigger className="border-beer-dark">
+                  <SelectValue placeholder="Select a beer type" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border border-gray-300 shadow-lg z-50">
+                  {beerTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.id}>
+                      {type.name} ({type.alcohol_percentage}% ABV)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="beer-type">Beer Type</Label>
-            <Input
-              id="beer-type"
-              type="text"
-              value={formData.beerType}
-              onChange={(e) => handleInputChange('beerType', e.target.value)}
-              className="border-beer-dark focus:ring-beer-amber"
-              placeholder="e.g., Lager, IPA, Stout"
-            />
-          </div>
+          {selectedBeerType && (
+            <div className="p-3 bg-beer-cream rounded border border-beer-dark">
+              <p className="text-sm text-beer-dark">
+                <strong>{selectedBeerType.name}</strong> - {selectedBeerType.alcohol_percentage}% ABV
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -208,7 +248,7 @@ const AddPurchaseForm = () => {
           <Button 
             type="submit" 
             className="w-full bg-beer-amber hover:bg-beer-dark text-beer-dark hover:text-beer-cream"
-            disabled={isLoading || !formData.beerName || formData.cost <= 0 || formData.quantity <= 0}
+            disabled={isLoading || !formData.beerTypeId || formData.cost <= 0 || formData.quantity <= 0}
           >
             {isLoading ? "Logging Purchase..." : "Log Purchase"}
           </Button>

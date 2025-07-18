@@ -19,6 +19,7 @@ export type Database = {
           alcohol_percentage: number | null
           created_at: string
           id: string
+          purchase_id: string | null
           size: number | null
           timestamp: string | null
           type: string | null
@@ -29,6 +30,7 @@ export type Database = {
           alcohol_percentage?: number | null
           created_at?: string
           id?: string
+          purchase_id?: string | null
           size?: number | null
           timestamp?: string | null
           type?: string | null
@@ -39,6 +41,7 @@ export type Database = {
           alcohol_percentage?: number | null
           created_at?: string
           id?: string
+          purchase_id?: string | null
           size?: number | null
           timestamp?: string | null
           type?: string | null
@@ -46,6 +49,20 @@ export type Database = {
           userName?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "beer_entries_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "beer_purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "beer_entries_userId_fkey"
+            columns: ["userId"]
+            isOneToOne: false
+            referencedRelation: "public_user_profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "beer_entries_userId_fkey"
             columns: ["userId"]
@@ -66,6 +83,7 @@ export type Database = {
           purchase_date: string
           quantity: number
           quantity_unit: string
+          remaining_quantity: number | null
           store_name: string | null
           updated_at: string
           user_id: string
@@ -81,6 +99,7 @@ export type Database = {
           purchase_date?: string
           quantity: number
           quantity_unit?: string
+          remaining_quantity?: number | null
           store_name?: string | null
           updated_at?: string
           user_id: string
@@ -96,6 +115,7 @@ export type Database = {
           purchase_date?: string
           quantity?: number
           quantity_unit?: string
+          remaining_quantity?: number | null
           store_name?: string | null
           updated_at?: string
           user_id?: string
@@ -147,10 +167,41 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_user_profiles: {
+        Row: {
+          id: string | null
+          username: string | null
+        }
+        Insert: {
+          id?: string | null
+          username?: string | null
+        }
+        Update: {
+          id?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
+      user_profiles_limited: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string | null
+          name: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      get_limited_user_profiles: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string | null
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

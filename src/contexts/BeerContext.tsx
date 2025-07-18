@@ -18,7 +18,7 @@ export interface BeerEntry {
 
 interface BeerContextType {
   entries: BeerEntry[];
-  addEntry: (size: number, type?: string, alcoholPercentage?: number) => void;
+  addEntry: (size: number, type?: string, alcoholPercentage?: number, purchaseId?: string) => void;
   getUserEntries: (userId: string) => BeerEntry[];
   getEntriesInTimeRange: (startDate: Date, endDate: Date) => BeerEntry[];
   getUserEntriesInTimeRange: (userId: string, startDate: Date, endDate: Date) => BeerEntry[];
@@ -81,7 +81,7 @@ export const BeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Add a new beer entry with alcohol percentage
-  const addEntry = async (size: number, type?: string, alcoholPercentage?: number) => {
+  const addEntry = async (size: number, type?: string, alcoholPercentage?: number, purchaseId?: string) => {
     if (!currentUser) return;
     
     setIsLoading(true);
@@ -93,6 +93,7 @@ export const BeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
         timestamp: new Date().toISOString(),
         type,
         alcohol_percentage: alcoholPercentage,
+        purchase_id: purchaseId,
       };
       
       const newEntry = await beerApiService.addEntry(newEntryData);
@@ -100,7 +101,8 @@ export const BeerProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Update local state
       setEntries(prevEntries => [...prevEntries, newEntry]);
       
-      toast(`Beer added! You've added a ${size}ml ${type} (${alcoholPercentage}% ABV).`);
+      const purchaseText = purchaseId ? " from your purchase" : "";
+      toast(`Beer added! You've added a ${size}ml ${type} (${alcoholPercentage}% ABV)${purchaseText}.`);
     } catch (error) {
       console.error('Error adding beer entry:', error);
       toast("Failed to add beer. Please try again");

@@ -1,13 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Beer } from 'lucide-react';
+import { Plus, Beer, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useBeer } from '@/contexts/BeerContext';
+import { useUser } from '@/contexts/UserContext';
 import { supabase } from '@/lib/supabase';
+import { toast } from '@/components/ui/sonner';
 
 interface BeerType {
   id: string;
@@ -15,13 +18,28 @@ interface BeerType {
   alcohol_percentage: number;
 }
 
+interface BeerPurchase {
+  id: string;
+  beer_name: string;
+  beer_type: string;
+  remaining_quantity: number;
+  quantity_unit: string;
+  store_name?: string;
+  purchase_date: string;
+}
+
 const AddBeerForm = () => {
   const { addEntry, isLoading } = useBeer();
+  const { currentUser } = useUser();
   const [size, setSize] = useState<number>(500);
   const [selectedBeerType, setSelectedBeerType] = useState<string>('');
   const [beerTypes, setBeerTypes] = useState<BeerType[]>([]);
   const [customAlcoholPercentage, setCustomAlcoholPercentage] = useState<number>(5.0);
   const [loadingBeerTypes, setLoadingBeerTypes] = useState(true);
+  const [consumptionSource, setConsumptionSource] = useState<'new' | 'purchase'>('new');
+  const [selectedPurchase, setSelectedPurchase] = useState<string>('');
+  const [purchases, setPurchases] = useState<BeerPurchase[]>([]);
+  const [loadingPurchases, setLoadingPurchases] = useState(false);
 
   // Load beer types from database
   useEffect(() => {
@@ -57,6 +75,35 @@ const AddBeerForm = () => {
     loadBeerTypes();
   }, []);
 
+  // Load user's purchases when consumption source is 'purchase'
+  useEffect(() => {
+    if (consumptionSource === 'purchase' && currentUser) {
+      loadPurchases();
+    }
+  }, [consumptionSource, currentUser]);
+
+  const loadPurchases = async () => {
+    if (!currentUser) return;
+    
+    setLoadingPurchases(true);
+    try {
+      const { data, error } = await supabase
+        .from('beer_purchases')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .gt('remaining_quantity', 0)
+        .order('purchase_date', { ascending: false });
+      
+      if (error) throw error;
+      setPurchases(data || []);
+    } catch (error) {
+      console.error('Error loading purchases:', error);
+      toast("Failed to load purchases");
+    } finally {
+      setLoadingPurchases(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -66,22 +113,73 @@ const AddBeerForm = () => {
 
     let beerTypeName = 'Other';
     let alcoholPercentage = customAlcoholPercentage;
+    let purchaseId = null;
 
-    if (selectedBeerType) {
-      const selectedType = beerTypes.find(type => type.id === selectedBeerType);
-      if (selectedType) {
-        beerTypeName = selectedType.name;
-        alcoholPercentage = selectedType.alcohol_percentage;
+    if (consumptionSource === 'purchase') {
+      if (!selectedPurchase) {
+        toast("Please select a purchase");
+        return;
+      }
+      
+      const purchase = purchases.find(p => p.id === selectedPurchase);
+      if (!purchase) {
+        toast("Selected purchase not found");
+        return;
+      }
+
+      // Check if there's enough remaining quantity
+      const consumedUnits = size / 500; // Assuming 500ml per unit, adjust as needed
+      if (consumedUnits > purchase.remaining_quantity) {
+        toast(`Not enough remaining quantity. Only ${purchase.remaining_quantity} ${purchase.quantity_unit} left.`);
+        return;
+      }
+
+      beerTypeName = purchase.beer_name;
+      purchaseId = purchase.id;
+      
+      // Get alcohol percentage from beer type
+      const matchingBeerType = beerTypes.find(type => type.name === purchase.beer_type);
+      if (matchingBeerType) {
+        alcoholPercentage = matchingBeerType.alcohol_percentage;
+      }
+
+      // Update remaining quantity
+      try {
+        const { error } = await supabase
+          .from('beer_purchases')
+          .update({ remaining_quantity: purchase.remaining_quantity - consumedUnits })
+          .eq('id', purchase.id);
+        
+        if (error) throw error;
+      } catch (error) {
+        console.error('Error updating purchase quantity:', error);
+        toast("Failed to update purchase quantity");
+        return;
+      }
+    } else {
+      // New beer consumption
+      if (selectedBeerType) {
+        const selectedType = beerTypes.find(type => type.id === selectedBeerType);
+        if (selectedType) {
+          beerTypeName = selectedType.name;
+          alcoholPercentage = selectedType.alcohol_percentage;
+        }
       }
     }
 
-    console.log('Adding beer entry:', { size, beerTypeName, alcoholPercentage });
-    await addEntry(size, beerTypeName, alcoholPercentage);
+    console.log('Adding beer entry:', { size, beerTypeName, alcoholPercentage, purchaseId });
+    await addEntry(size, beerTypeName, alcoholPercentage, purchaseId);
     
     // Reset form
     setSize(500);
     setSelectedBeerType('');
     setCustomAlcoholPercentage(5.0);
+    setSelectedPurchase('');
+    
+    // Reload purchases if we used one
+    if (consumptionSource === 'purchase') {
+      loadPurchases();
+    }
   };
 
   const selectedType = beerTypes.find(type => type.id === selectedBeerType);
@@ -97,40 +195,88 @@ const AddBeerForm = () => {
       
       <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="beer-type">Beer Type</Label>
-            {loadingBeerTypes ? (
-              <div className="text-sm text-gray-500">Loading beer types...</div>
-            ) : (
-              <Select value={selectedBeerType} onValueChange={setSelectedBeerType}>
-                <SelectTrigger className="border-beer-dark">
-                  <SelectValue placeholder="Select beer type or leave blank for custom" />
-                </SelectTrigger>
-                <SelectContent className="bg-white border border-gray-300 shadow-lg z-50">
-                  {beerTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id}>
-                      {type.name} ({type.alcohol_percentage}% ABV)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+          <div className="space-y-3">
+            <Label>Consumption Source</Label>
+            <RadioGroup value={consumptionSource} onValueChange={(value: 'new' | 'purchase') => setConsumptionSource(value)}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="new" id="new" />
+                <Label htmlFor="new">New Beer (not from purchase)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="purchase" id="purchase" />
+                <Label htmlFor="purchase">From Previous Purchase</Label>
+              </div>
+            </RadioGroup>
           </div>
 
-          {!selectedBeerType && (
+          {consumptionSource === 'purchase' ? (
             <div className="space-y-2">
-              <Label htmlFor="custom-alcohol">Custom Alcohol % (ABV)</Label>
-              <Input
-                id="custom-alcohol"
-                type="number"
-                min="0"
-                max="20"
-                step="0.1"
-                value={customAlcoholPercentage}
-                onChange={(e) => setCustomAlcoholPercentage(parseFloat(e.target.value) || 0)}
-                className="border-beer-dark focus:ring-beer-amber"
-              />
+              <Label htmlFor="purchase-select">Select Purchase</Label>
+              {loadingPurchases ? (
+                <div className="text-sm text-gray-500">Loading purchases...</div>
+              ) : purchases.length === 0 ? (
+                <div className="text-sm text-gray-500 p-3 bg-gray-100 rounded">
+                  No purchases with remaining quantity found. Buy some beer first!
+                </div>
+              ) : (
+                <Select value={selectedPurchase} onValueChange={setSelectedPurchase}>
+                  <SelectTrigger className="border-beer-dark">
+                    <SelectValue placeholder="Select a purchase" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border border-gray-300 shadow-lg z-50">
+                    {purchases.map((purchase) => (
+                      <SelectItem key={purchase.id} value={purchase.id}>
+                        <div className="flex items-center space-x-2">
+                          <ShoppingCart className="h-4 w-4" />
+                          <span>
+                            {purchase.beer_name} - {purchase.remaining_quantity} {purchase.quantity_unit} left
+                            {purchase.store_name && ` (${purchase.store_name})`}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="beer-type">Beer Type</Label>
+                {loadingBeerTypes ? (
+                  <div className="text-sm text-gray-500">Loading beer types...</div>
+                ) : (
+                  <Select value={selectedBeerType} onValueChange={setSelectedBeerType}>
+                    <SelectTrigger className="border-beer-dark">
+                      <SelectValue placeholder="Select beer type or leave blank for custom" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border border-gray-300 shadow-lg z-50">
+                      {beerTypes.map((type) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name} ({type.alcohol_percentage}% ABV)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              {!selectedBeerType && (
+                <div className="space-y-2">
+                  <Label htmlFor="custom-alcohol">Custom Alcohol % (ABV)</Label>
+                  <Input
+                    id="custom-alcohol"
+                    type="number"
+                    min="0"
+                    max="20"
+                    step="0.1"
+                    value={customAlcoholPercentage}
+                    onChange={(e) => setCustomAlcoholPercentage(parseFloat(e.target.value) || 0)}
+                    className="border-beer-dark focus:ring-beer-amber"
+                  />
+                </div>
+              )}
+            </>
           )}
 
           <div className="space-y-2">
@@ -161,25 +307,48 @@ const AddBeerForm = () => {
             />
           </div>
 
-          {selectedType && (
+          {((consumptionSource === 'new' && selectedType) || (consumptionSource === 'purchase' && selectedPurchase)) && (
             <div className="p-3 bg-beer-cream rounded border border-beer-dark">
-              <p className="text-sm text-beer-dark">
-                <strong>{selectedType.name}</strong> - {selectedType.alcohol_percentage}% ABV
-              </p>
+              {consumptionSource === 'new' && selectedType && (
+                <p className="text-sm text-beer-dark">
+                  <strong>{selectedType.name}</strong> - {selectedType.alcohol_percentage}% ABV
+                </p>
+              )}
+              {consumptionSource === 'purchase' && selectedPurchase && (
+                (() => {
+                  const purchase = purchases.find(p => p.id === selectedPurchase);
+                  const beerType = beerTypes.find(type => type.name === purchase?.beer_type);
+                  return purchase ? (
+                    <p className="text-sm text-beer-dark">
+                      <strong>{purchase.beer_name}</strong> - {beerType?.alcohol_percentage || 5.0}% ABV
+                      <br />
+                      <span className="text-xs">From purchase: {purchase.remaining_quantity} {purchase.quantity_unit} remaining</span>
+                    </p>
+                  ) : null;
+                })()
+              )}
             </div>
           )}
 
           <Button 
             type="submit" 
             className="w-full bg-beer-amber hover:bg-beer-dark text-beer-dark hover:text-beer-cream"
-            disabled={isLoading || !size || size <= 0}
+            disabled={isLoading || !size || size <= 0 || (consumptionSource === 'purchase' && !selectedPurchase)}
           >
             {isLoading ? (
               "Adding..."
             ) : (
               <>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Beer ({size}ml, {selectedType ? selectedType.alcohol_percentage : customAlcoholPercentage}% ABV)
+                Add Beer ({size}ml, {
+                  consumptionSource === 'purchase' && selectedPurchase
+                    ? (() => {
+                        const purchase = purchases.find(p => p.id === selectedPurchase);
+                        const beerType = beerTypes.find(type => type.name === purchase?.beer_type);
+                        return beerType?.alcohol_percentage || 5.0;
+                      })()
+                    : selectedType ? selectedType.alcohol_percentage : customAlcoholPercentage
+                }% ABV)
               </>
             )}
           </Button>
