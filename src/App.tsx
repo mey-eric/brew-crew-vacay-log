@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import AlcoholTracking from "./pages/AlcoholTracking";
 import BeerConsumption from "./pages/BeerConsumption";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
               <Route path="/profile" element={<Profile />} />
               <Route path="/alcohol-tracking" element={<AlcoholTracking />} />
               <Route path="/beer-consumption" element={<BeerConsumption />} />
+              <Route path="/admin" element={<Admin />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
