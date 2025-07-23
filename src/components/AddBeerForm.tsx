@@ -91,7 +91,6 @@ const AddBeerForm = () => {
       const { data, error } = await supabase
         .from('beer_purchases')
         .select('*')
-        .eq('user_id', currentUser.id)
         .gt('remaining_quantity', 0)
         .order('purchase_date', { ascending: false });
       
