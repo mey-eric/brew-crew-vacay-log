@@ -243,6 +243,7 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/`,
           data: {
             name // Store the name in user_metadata
           }
