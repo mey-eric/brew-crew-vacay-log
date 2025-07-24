@@ -51,7 +51,6 @@ const Admin = () => {
       const { data: purchasesData, error: purchasesError } = await supabase
         .from('beer_purchases')
         .select('*')
-        .eq('user_id', currentUser.id)
         .order('purchase_date', { ascending: false });
 
       if (purchasesError) throw purchasesError;
@@ -105,12 +104,46 @@ const Admin = () => {
 
   const deleteEntry = async (id: string) => {
     try {
+      // First get the entry to check if it has a purchase_id
+      const { data: entryData, error: entryError } = await supabase
+        .from('beer_entries')
+        .select('purchase_id')
+        .eq('id', id)
+        .single();
+
+      if (entryError) throw entryError;
+
+      // Delete the entry
       const { error } = await supabase
         .from('beer_entries')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+
+      // If the entry had a purchase_id, restore 1 unit to the purchase
+      if (entryData.purchase_id) {
+        // First get the current purchase to update it properly
+        const { data: purchaseData, error: purchaseError } = await supabase
+          .from('beer_purchases')
+          .select('remaining_quantity')
+          .eq('id', entryData.purchase_id)
+          .single();
+
+        if (!purchaseError && purchaseData) {
+          const { error: updateError } = await supabase
+            .from('beer_purchases')
+            .update({ 
+              remaining_quantity: purchaseData.remaining_quantity + 1
+            })
+            .eq('id', entryData.purchase_id);
+
+          if (updateError) {
+            console.error('Error restoring purchase quantity:', updateError);
+            // Don't fail the deletion, just log the error
+          }
+        }
+      }
 
       setEntries(entries.filter(e => e.id !== id));
       toast({
