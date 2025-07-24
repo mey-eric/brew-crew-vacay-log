@@ -185,26 +185,9 @@ export type Database = {
         }
         Relationships: []
       }
-      user_profiles_limited: {
-        Row: {
-          created_at: string | null
-          email: string | null
-          id: string | null
-          name: string | null
-        }
-        Relationships: []
-      }
     }
     Functions: {
-      get_limited_user_profiles: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          created_at: string
-          email: string | null
-          id: string
-          name: string | null
-        }[]
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
