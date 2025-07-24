@@ -39,7 +39,6 @@ const PurchaseHistory = () => {
       const { data, error } = await supabase
         .from('beer_purchases')
         .select('*')
-        .eq('user_id', currentUser.id)
         .order('purchase_date', { ascending: false })
         .limit(10);
 
@@ -76,7 +75,7 @@ const PurchaseHistory = () => {
       <CardHeader className="bg-beer-amber text-beer-dark rounded-t-md">
         <CardTitle className="flex items-center text-xl font-bold">
           <Receipt className="mr-2 h-5 w-5" />
-          Purchase History
+          All Purchase History
         </CardTitle>
       </CardHeader>
       
@@ -122,6 +121,7 @@ const PurchaseHistory = () => {
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <h4 className="font-semibold text-beer-dark">{purchase.beer_name}</h4>
+                      <p className="text-sm text-gray-500">by {purchase.user_name}</p>
                       {purchase.beer_type && (
                         <Badge variant="outline" className="text-xs mt-1">
                           {purchase.beer_type}
