@@ -1,16 +1,25 @@
 
 import React, { useState } from 'react';
-import { ChartBar, Calendar, Filter, TrendingUp, Maximize2 } from 'lucide-react';
+import { ChartBar, Calendar, Filter, TrendingUp, Maximize2, CalendarIcon } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ComposedChart } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { useBeer } from '@/contexts/BeerContext';
 import { useUser } from '@/contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
 
-type TimeRange = '24h' | '7d' | '30d' | 'all';
+type TimeRange = '24h' | '7d' | '30d' | 'all' | 'custom';
+
+interface DateRange {
+  from: Date | undefined;
+  to: Date | undefined;
+}
 
 interface ConsumptionGraphProps {
   isFullScreen?: boolean;
@@ -22,6 +31,10 @@ const ConsumptionGraph: React.FC<ConsumptionGraphProps> = ({ isFullScreen = fals
   const navigate = useNavigate();
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
   const [selectedUser, setSelectedUser] = useState<string | 'all'>('all');
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: undefined,
+    to: undefined,
+  });
 
   console.log('ConsumptionGraph - entries:', entries);
   console.log('ConsumptionGraph - users:', users);
@@ -55,6 +68,14 @@ const ConsumptionGraph: React.FC<ConsumptionGraphProps> = ({ isFullScreen = fals
 
   // Calculate date range based on selection
   const getDateRange = (): [Date, Date] => {
+    if (timeRange === 'custom' && dateRange.from && dateRange.to) {
+      const startDate = new Date(dateRange.from);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(dateRange.to);
+      endDate.setHours(23, 59, 59, 999);
+      return [startDate, endDate];
+    }
+    
     const endDate = new Date();
     // Add a small buffer to ensure we capture all of today's data
     endDate.setHours(23, 59, 59, 999);
@@ -266,8 +287,64 @@ const ConsumptionGraph: React.FC<ConsumptionGraphProps> = ({ isFullScreen = fals
               <SelectItem value="7d">Last 7 days</SelectItem>
               <SelectItem value="30d">Last 30 days</SelectItem>
               <SelectItem value="all">All time</SelectItem>
+              <SelectItem value="custom">Custom Range</SelectItem>
             </SelectContent>
           </Select>
+          
+          {timeRange === 'custom' && (
+            <div className="flex gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[110px] justify-start text-left font-normal border-beer-dark text-xs",
+                      !dateRange.from && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-1 h-3 w-3" />
+                    {dateRange.from ? format(dateRange.from, "MMM dd") : "From"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateRange.from}
+                    onSelect={(date) => setDateRange(prev => ({ ...prev, from: date }))}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[110px] justify-start text-left font-normal border-beer-dark text-xs",
+                      !dateRange.to && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-1 h-3 w-3" />
+                    {dateRange.to ? format(dateRange.to, "MMM dd") : "To"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateRange.to}
+                    onSelect={(date) => setDateRange(prev => ({ ...prev, to: date }))}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                    disabled={(date) => 
+                      dateRange.from ? date < dateRange.from : false
+                    }
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
           
           <Select value={selectedUser} onValueChange={setSelectedUser}>
             <SelectTrigger className="w-full sm:w-[160px] border-beer-dark bg-beer-cream text-beer-dark">

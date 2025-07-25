@@ -3,7 +3,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useUser } from './UserContext';
 import { beerApiService } from '@/services/beerApiService';
 import { toast } from '@/components/ui/sonner';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 // Types
 export interface BeerEntry {

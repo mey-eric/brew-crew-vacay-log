@@ -1,20 +1,33 @@
 
 import React, { useState } from 'react';
-import { Wine, Clock, TrendingDown, ExternalLink } from 'lucide-react';
+import { Wine, Clock, TrendingDown, ExternalLink, CalendarIcon } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { useBeer } from '@/contexts/BeerContext';
 import { useUser } from '@/contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
 
-type TimeRange = '24h' | '12h' | '6h';
+type TimeRange = '24h' | '12h' | '6h' | 'custom';
+
+interface DateRange {
+  from: Date | undefined;
+  to: Date | undefined;
+}
 
 const AlcoholTrackingGraph = () => {
   const { entries } = useBeer();
   const { currentUser } = useUser();
   const [timeRange, setTimeRange] = useState<TimeRange>('12h');
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: undefined,
+    to: undefined,
+  });
   const navigate = useNavigate();
 
   // Calculate BAC based on alcohol consumed and time
@@ -33,6 +46,14 @@ const AlcoholTrackingGraph = () => {
 
   // Get date range based on selection
   const getDateRange = (): [Date, Date] => {
+    if (timeRange === 'custom' && dateRange.from && dateRange.to) {
+      const startDate = new Date(dateRange.from);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(dateRange.to);
+      endDate.setHours(23, 59, 59, 999);
+      return [startDate, endDate];
+    }
+    
     const endDate = new Date();
     const startDate = new Date();
     
@@ -133,8 +154,65 @@ const AlcoholTrackingGraph = () => {
               <SelectItem value="6h">6h</SelectItem>
               <SelectItem value="12h">12h</SelectItem>
               <SelectItem value="24h">24h</SelectItem>
+              <SelectItem value="custom">Custom</SelectItem>
             </SelectContent>
           </Select>
+          
+          {timeRange === 'custom' && (
+            <div className="flex gap-1">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[80px] justify-start text-left font-normal border-beer-dark text-xs px-2",
+                      !dateRange.from && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-1 h-3 w-3" />
+                    {dateRange.from ? format(dateRange.from, "MMM dd") : "From"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateRange.from}
+                    onSelect={(date) => setDateRange(prev => ({ ...prev, from: date }))}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[80px] justify-start text-left font-normal border-beer-dark text-xs px-2",
+                      !dateRange.to && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-1 h-3 w-3" />
+                    {dateRange.to ? format(dateRange.to, "MMM dd") : "To"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateRange.to}
+                    onSelect={(date) => setDateRange(prev => ({ ...prev, to: date }))}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                    disabled={(date) => 
+                      dateRange.from ? date < dateRange.from : false
+                    }
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+          
           <Button 
             variant="outline" 
             size="sm" 
