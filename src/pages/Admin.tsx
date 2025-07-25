@@ -24,6 +24,7 @@ interface BeerPurchase {
 interface BeerEntry {
   id: string;
   beer_name: string;
+  type: string;
   size: number;
   userName: string;
   timestamp: string;
@@ -252,7 +253,7 @@ const Admin = () => {
                        <div className="flex-1 min-w-0">
                          <p className="font-medium text-sm truncate">{entry.beer_name}</p>
                          <p className="text-xs text-muted-foreground">
-                           {entry.beer_name} • by {entry.userName} • {entry.size}ml
+                           {entry.type && `${entry.type} • `}by {entry.userName} • {entry.size}ml
                            {entry.location && ` • ${entry.location}`}
                          </p>
                          <p className="text-xs text-muted-foreground">
