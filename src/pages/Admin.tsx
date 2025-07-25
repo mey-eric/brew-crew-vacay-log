@@ -16,6 +16,7 @@ interface BeerPurchase {
   beer_size: number;
   remaining_quantity: number;
   purchase_date: string;
+  user_name: string;
   location?: string;
   price?: number;
 }
@@ -24,6 +25,7 @@ interface BeerEntry {
   id: string;
   beer_name: string;
   beer_size: number;
+  userName: string;
   timestamp: string;
   location?: string;
 }
@@ -59,7 +61,6 @@ const Admin = () => {
       const { data: entriesData, error: entriesError } = await supabase
         .from('beer_entries')
         .select('*')
-        .eq('userId', currentUser.id)
         .order('timestamp', { ascending: false });
 
       if (entriesError) throw entriesError;
@@ -204,17 +205,17 @@ const Admin = () => {
                   <p className="text-muted-foreground text-center py-4">No purchases found</p>
                 ) : (
                   purchases.map((purchase) => (
-                    <div key={purchase.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{purchase.beer_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {purchase.quantity}x {purchase.beer_size}ml
-                          {purchase.location && ` • ${purchase.location}`}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(purchase.purchase_date).toLocaleDateString()}
-                        </p>
-                      </div>
+                     <div key={purchase.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
+                       <div className="flex-1 min-w-0">
+                         <p className="font-medium text-sm truncate">{purchase.beer_name}</p>
+                         <p className="text-xs text-muted-foreground">
+                           by {purchase.user_name} • {purchase.quantity}x {purchase.beer_size}ml
+                           {purchase.location && ` • ${purchase.location}`}
+                         </p>
+                         <p className="text-xs text-muted-foreground">
+                           {new Date(purchase.purchase_date).toLocaleDateString()}
+                         </p>
+                       </div>
                       <Button
                         variant="destructive"
                         size="sm"
@@ -247,17 +248,17 @@ const Admin = () => {
                   <p className="text-muted-foreground text-center py-4">No entries found</p>
                 ) : (
                   entries.map((entry) => (
-                    <div key={entry.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{entry.beer_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {entry.beer_size}ml
-                          {entry.location && ` • ${entry.location}`}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(entry.timestamp).toLocaleString()}
-                        </p>
-                      </div>
+                     <div key={entry.id} className="flex items-center justify-between p-3 border rounded-lg bg-card">
+                       <div className="flex-1 min-w-0">
+                         <p className="font-medium text-sm truncate">{entry.beer_name}</p>
+                         <p className="text-xs text-muted-foreground">
+                           by {entry.userName} • {entry.beer_size}ml
+                           {entry.location && ` • ${entry.location}`}
+                         </p>
+                         <p className="text-xs text-muted-foreground">
+                           {new Date(entry.timestamp).toLocaleString()}
+                         </p>
+                       </div>
                       <Button
                         variant="destructive"
                         size="sm"
